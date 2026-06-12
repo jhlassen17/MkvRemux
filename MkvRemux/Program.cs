@@ -13,7 +13,7 @@ namespace MkvRemux;
 //    --encode-video              Re-encode video to HEVC Main10
 //    --encoder <nvenc|qsv|sw>    Force encoder (sw = libx265 CPU fallback)
 //    --allow-sw-fallback         Allow libx265 if no GPU encoder found
-//    --cq <n>                    Quality: CQ (NVENC), GQ (QSV), CRF (x265). Default 20
+//    --cq <n>                    Quality: CQ (NVENC), GQ (QSV), CRF (x265). Default 19 (range 0-51, lower is better)
 //    --nvenc-preset <p1-p7>      NVENC speed preset (default: p4)
 //    --lossless <flac|alac|pcm>  Add lossless track(s); repeatable/comma-separated
 //    --stereo-filter <mode>      Stereo downmix: default | dolby  (default: default)
@@ -493,7 +493,11 @@ public class Program
         _ => enc.ToString()
     };
 
+    /// <summary>
     /// Runs ffmpeg with the given arguments, logging output in real time and returning the exit code.
+    /// </summary>
+    /// <param name="arguments">The arguments to pass to ffmpeg.</param>
+    /// <returns>The exit code of the ffmpeg process.</returns>
     static int RunFfmpeg(string arguments)
     {
         var (output, exitCode) = MKVUtil.RunffMpeg(arguments); // Log ffmpeg output in real time, and capture exit code
