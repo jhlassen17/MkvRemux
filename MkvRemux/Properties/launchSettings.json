@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MkvRemux": {
+      "commandName": "Project",
+      "commandLineArgs": "\"J:\\jeff\\files\\Temp\\Travel\\Remux\" --encode-video --encoder nvenc --allow-sw-fallback --cq 19 --nvenc-preset p4 --stereo-filter dolby --skip-existing  --recursive --output-dir \"J:\\jeff\\files\\Temp\\JHL03\" "
+    }
+  }
+}

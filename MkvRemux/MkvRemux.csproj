@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MkvRemux</AssemblyName>
+    <RootNamespace>MkvRemux</RootNamespace>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+	<Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Configurations>Debug;Release</Configurations>
+  </PropertyGroup>
+
+</Project>

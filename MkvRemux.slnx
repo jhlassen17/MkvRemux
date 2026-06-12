@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Debugg" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Project Path="MkvRemux/MkvRemux.csproj" />
+</Solution>
