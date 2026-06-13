@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 
@@ -27,6 +28,7 @@ static class StreamAnalyzer
         var (json, exitCode) = MKVUtil.RunffProbe(
             $"-v quiet -print_format json -show_streams \"{inputPath}\"");
 
+        // If ffprobe returns a non-zero exit code, it indicates an error. Throw an exception with details.
         if (exitCode != 0)
         {
             throw new InvalidOperationException(
@@ -45,7 +47,7 @@ static class StreamAnalyzer
             ?? throw new InvalidOperationException("ffprobe JSON has no 'streams' array.");
 
         // Set up variables to hold the stream info. We assume at most one video stream, but can have multiple audio and subtitle streams.
-        VideoStreamInfo? video = null;
+        VideoStreamInfo? video = null;              // Assumes only one video stream; if multiple are present, only the last processed will be stored
         var audio = new List<AudioStreamInfo>();
         var subtitles = new List<SubtitleStreamInfo>();
 
@@ -67,10 +69,13 @@ static class StreamAnalyzer
             // Handle each codec type accordingly
             switch (codecType)
             {
+                // Video Stream
                 case "video" when video is null:
+                    // TODO: Allow multiple video streams and return a list, like we do for audio and subtitles. For now, just take the first one we encounter.
                     video = ParseVideo(s, idx, codec);
                     break;
 
+                // Audio Stream
                 case "audio":
                     int channels = s["channels"]?.GetValue<int>() ?? 0;
                     string layout = s["channel_layout"]?.GetValue<string>() ?? "";
@@ -81,11 +86,9 @@ static class StreamAnalyzer
                                                   channels, layout, bitsPerSample));
                     break;
 
+                // Subtitle Stream
                 case "subtitle":
                     // Read the hearing_impaired disposition only for subtitle streams.
-                    // Using ToString() + int.TryParse avoids InvalidOperationException if the
-                    // node's underlying JSON type doesn't match int exactly (e.g. attachment
-                    // streams or non-standard containers with unexpected disposition formats).
                     bool isHearingImpaired =
                         int.TryParse(s["disposition"]?["hearing_impaired"]?.ToString(), out int hiVal)
                         && hiVal == 1;
@@ -118,6 +121,8 @@ static class StreamAnalyzer
         string colorSp = s["color_space"]?.GetValue<string>() ?? "";
         string colorPri = s["color_primaries"]?.GetValue<string>() ?? "";
         string colorTrc = s["color_transfer"]?.GetValue<string>() ?? "";
+        string durationStr = s["tags"]["DURATION"]?.GetValue<string>() ?? "";
+        TimeSpan duration = ParseFfprobeDuration(durationStr);
 
         // Initialize variables for HDR mastering display, content light level, and Dolby Vision flag
         HdrMasteringDisplay? masteringDisplay = null;
@@ -163,7 +168,7 @@ static class StreamAnalyzer
         // Create and return a VideoStreamInfo object with the extracted information
         return new VideoStreamInfo(idx, codec, width, height, pixFmt,
                                    colorSp, colorPri, colorTrc,
-                                   masteringDisplay, maxCll, isDovi);
+                                   masteringDisplay, maxCll, isDovi, duration);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -194,4 +199,37 @@ static class StreamAnalyzer
     /// <returns>The normalized language code.</returns>
     private static string Normalize(string? raw) =>
         string.IsNullOrWhiteSpace(raw) ? "und" : raw.Trim().ToLowerInvariant();
+
+    /// <summary>
+    /// Parses an ffprobe DURATION tag, which may be:
+    ///   "02:33:33.371000000"  (HH:mm:ss + up to 9 fractional digits)
+    ///   "9213.371"            (plain decimal seconds)
+    ///   ""  / null            (missing tag)
+    /// </summary>
+    private static TimeSpan ParseFfprobeDuration(string? s)
+    {
+        // Skip parsing if the string is null, empty, or whitespace, and return a default duration of zero.
+        if (string.IsNullOrWhiteSpace(s))
+            return TimeSpan.Zero;
+
+        // Case 1: plain decimal seconds  e.g. "9213.371"
+        if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double secs))
+            return TimeSpan.FromSeconds(secs);
+
+        // Case 2: HH:mm:ss.fffffffff
+        // TimeSpan only supports 7 fractional digits — truncate any excess.
+        int dotIdx = s.LastIndexOf('.');
+        if (dotIdx >= 0)
+        {
+            ReadOnlySpan<char> frac = s.AsSpan(dotIdx + 1);
+            if (frac.Length > 7)
+                s = string.Concat(s.AsSpan(0, dotIdx + 1), frac[..7]);
+        }
+
+        // Try to parse the string as a TimeSpan using invariant culture.
+        // If parsing fails, return a default duration of zero.
+        return TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out TimeSpan ts)
+            ? ts
+            : TimeSpan.Zero;
+    }
 }
