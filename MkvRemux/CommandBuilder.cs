@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace MkvRemux;
@@ -86,26 +87,26 @@ public static class CommandBuilder
         }
 
         // ── 2. Select subtitles ──────────────────────────────────────────────
-        var engUndSubs = allSubs.Where(s => PreferredLangs.Contains(s.Language)).ToList();
-        var chosenSubs = engUndSubs.Count > 0 ? engUndSubs : allSubs;
-        var selectedSub = SelectSubtitleStream(chosenSubs);
+        var engUndSubs = allSubs.Where(s => PreferredLangs.Contains(s.Language)).ToList(); // Filter out non-ENG/UND subs
+        var chosenSubs = engUndSubs.Count > 0 ? engUndSubs : allSubs;                      // If no ENG/UND subs, include all
+        var selectedSub = SelectSubtitleStream(chosenSubs);                                // Try to select SDH-preferred subtitle, but fall back gracefully if not found
 
         // ── 3. Audio track layout ─────────────────────────────────────────────
         // Stereo source (≤ 2ch)  → 1 main track:  copy only
         // 5.1+ AAC source        → 2 main tracks: copy + AAC stereo downmix
         // 5.1+ non-AAC source    → 3 main tracks: copy + AAC surround + AAC stereo downmix
-        bool isStereoOnly  = mainAudio.Channels <= 2;
+        bool isStereoOnly = mainAudio.Channels <= 2;
         bool isAacSurround = !isStereoOnly && mainAudio.Codec.Equals("aac", StringComparison.OrdinalIgnoreCase);
         bool needsSurround = !isStereoOnly && !isAacSurround;   // true only for 5.1+ non-AAC
 
         // The stereo downmix track sits at index 1 when there's no separate surround track, 2 otherwise.
-        int stereoOutIdx   = needsSurround ? 2 : 1;
+        int stereoOutIdx = needsSurround ? 2 : 1;
         int mainTrackCount = isStereoOnly ? 1 : (needsSurround ? 3 : 2);
 
         // Lossless and secondary tracks follow the main group.
-        int losslessStart  = mainTrackCount;
+        int losslessStart = mainTrackCount;
         int secondaryStart = losslessStart + losslessFmts.Count;
-        int totalAudioOut  = mainTrackCount + losslessFmts.Count + secondary.Count;
+        int totalAudioOut = mainTrackCount + losslessFmts.Count + secondary.Count;
 
         // ── 4. Stereo filter ─────────────────────────────────────────────────
         string? panFilter = StereoDownmix.GetFilter(stereoMode, mainAudio);
@@ -145,6 +146,7 @@ public static class CommandBuilder
         }
         else
         {
+            // Loop through chosenSubs to find the selected track and mark it as default in the log output.
             for (int i = 0; i < chosenSubs.Count; i++)
             {
                 // Only SDH tracks are marked as default; non-SDH selected tracks are opt-in (no auto-default).
@@ -157,10 +159,16 @@ public static class CommandBuilder
         // ── 6. Assemble arguments ────────────────────────────────────────────
         var sb = new StringBuilder();
 
+        // PGS Adjustment
+        if (chosenSubs.Any(c => c.Codec.Contains("PGS", StringComparison.OrdinalIgnoreCase)))
+        {
+            sb.Append($" -probesize 100M");
+            sb.Append($" -analyzeduration 200M");
+        }
         // Input file
-        sb.Append($"-i \"{inputPath}\"");
+        sb.Append($" -i \"{inputPath}\"");
 
-       // Video map: use the explicit global index rather than "-map 0:v", which would pick up
+        // Video map: use the explicit global index rather than "-map 0:v", which would pick up
         // all video streams including embedded cover art / thumbnail streams.
         if (video is not null)
             sb.Append($" -map 0:{video.GlobalIndex}");
@@ -187,10 +195,10 @@ public static class CommandBuilder
         // Chapters
         sb.Append(" -map_chapters 0");
 
-        // Video codec
+        // Video codec (use args or copy)
         sb.Append(videoArgs is not null ? $" {videoArgs}" : " -c:v copy");
 
-        // Audio codecs
+        // Audio codecs (copy the first track regardless of source codec; re-encode the rest as needed)
         sb.Append(" -c:a:0 copy");
 
         // Surround track for non-AAC sources, or stereo track for AAC sources — both conditional on source properties.
@@ -226,7 +234,7 @@ public static class CommandBuilder
         // Audio: track 0 (bitstream copy) default, all others explicitly cleared.
         sb.Append(" -disposition:a:0 default");
         for (int i = 1; i < totalAudioOut; i++)
-            sb.Append($" -disposition:a:{i} 0");
+            sb.Append($" -disposition:a:{i} 0");    // Clear default flag for all non-primary audio tracks.
 
         // Subtitles: SDH tracks get +default+hearing_impaired; non-SDH selected tracks get "0"
         // (no auto-default — the viewer opts in). All unselected tracks are explicitly cleared.
@@ -234,26 +242,29 @@ public static class CommandBuilder
         {
             if (selectedSub is not null)
             {
+                // Calculate the output-relative index of the selected subtitle track based on its position in chosenSubs.
                 int selectedOutIdx = chosenSubs.IndexOf(selectedSub);
                 Console.WriteLine($"    → Default subtitle track: {selectedSub.DisplayName} ({selectedSub.Language})");
 
+                // SDH tracks are marked as default with the hearing_impaired flag, while non-SDH tracks are left without
                 string subDisposition = selectedSub.IsSDH
                     ? "+default+hearing_impaired"    // SDH: set default + hearing_impaired flag
                     : "0";                           // Non-SDH: no auto-default (opt-in behavior)
 
+                // Set the disposition for the selected subtitle track based on whether it's SDH or not.
                 sb.Append($" -disposition:s:{selectedOutIdx} {subDisposition}");
             }
             else
             {
+                // Otherwise set the default flag on the first subtitle track in chosenSubs
                 sb.Append(" -disposition:s:0 default");
             }
 
             // Clear dispositions for all non-selected subtitle tracks.
-            // Use i (not i+1) — i is already the correct output-relative index since the
-            // streams are mapped in chosenSubs order and the selected track is skipped via continue.
+            int selectedSubIdx = selectedSub is not null ? chosenSubs.IndexOf(selectedSub) : -1;
             for (int i = 0; i < chosenSubs.Count; i++)
             {
-                if (selectedSub is not null && i == chosenSubs.IndexOf(selectedSub))
+                if (selectedSub is not null && i == selectedSubIdx)
                     continue;   // already handled above
                 sb.Append($" -disposition:s:{i} 0");
             }
@@ -262,6 +273,7 @@ public static class CommandBuilder
         // ── 8. Metadata ──────────────────────────────────────────────────────
         // Audio metadata — indices must match the map order established in step 6.
         Metadata(sb, "a", 0, mainAudio.DisplayName, mainAudio.Language);
+
         // For the surround track, we preserve the channel description from the source (e.g. "5.1") since
         // it's more informative than just "AAC Surround". The stereo track is labelled "AAC Stereo"
         // since the channel count is always 2, but we don't want to include the source channel
@@ -271,13 +283,13 @@ public static class CommandBuilder
         if (!isStereoOnly)
             Metadata(sb, "a", stereoOutIdx, "AAC Stereo", mainAudio.Language);
 
-        // Lossless tracks
+        // Lossless tracks metadata
         for (int i = 0; i < losslessFmts.Count; i++)
             Metadata(sb, "a", losslessStart + i,
                      LosslessArgBuilder.TrackTitle(losslessFmts[i], mainAudio),
                      mainAudio.Language);
 
-        // Secondary audio
+        // Secondary audio metadata
         for (int i = 0; i < secondary.Count; i++)
             Metadata(sb, "a", secondaryStart + i, secondary[i].DisplayName, secondary[i].Language);
 
@@ -287,7 +299,7 @@ public static class CommandBuilder
         for (int i = 0; i < chosenSubs.Count; i++)
             Metadata(sb, "s", i, chosenSubs[i].DisplayName, chosenSubs[i].Language);
 
-        // Output file
+        // Output file path
         sb.Append($" \"{outputPath}\"");
 
         // Return the complete argument string.
@@ -305,6 +317,7 @@ public static class CommandBuilder
     /// <param name="lang">The language of the stream.</param>
     private static void Metadata(StringBuilder sb, string type, int idx, string title, string lang)
     {
+        // Escape double quotes in the title to prevent ffmpeg argument parsing issues.
         title = title.Replace("\"", "\\\"");
         sb.Append($" -metadata:s:{type}:{idx} title=\"{title}\"");
         sb.Append($" -metadata:s:{type}:{idx} language={lang}");
@@ -316,7 +329,6 @@ public static class CommandBuilder
     /// </summary>
     public static SubtitleStreamInfo? SelectSubtitleStream(
         IReadOnlyList<SubtitleStreamInfo> streams,
-        /* string preferredLanguage = "eng",*/
         bool preferSdh = true)
     {
         // If no subtitle streams are available, return null.
