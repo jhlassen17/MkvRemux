@@ -313,6 +313,7 @@ public partial class MKVUtil
         }
 
         // Build the final output line by combining the progress section with other ffmpeg metrics such as frame count, FPS, quality, size, bitrate, and speed.
+        return $"{progressSection} | frame={frame} fps={fps:F1} size={size} speed={speed:F2}x";
         return $"{progressSection} | frame={frame} fps={fps:F1} q={q:F2} size={size} bitrate={bitrate} speed={speed:F2}x";
     }
 
