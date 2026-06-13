@@ -41,7 +41,7 @@ public static class CommandBuilder
     /// </summary>
     /// <param name="inputPath">The path to the input MKV file.</param>
     /// <param name="outputPath">The path to the output MKV file.</param>
-    /// <param name="videos">All video streams in the input file (order = output stream index).</param>
+    /// <param name="videoStreams">All video streams in the input file (order = output stream index).</param>
     /// <param name="allAudio">A list of all audio streams in the input file.</param>
     /// <param name="allSubs">A list of all subtitle streams in the input file.</param>
     /// <param name="videoArgs">Per-stream video encoding arguments produced by VideoArgBuilder.Build
@@ -53,7 +53,7 @@ public static class CommandBuilder
     public static string Build(
         string inputPath,
         string outputPath,
-        List<VideoStreamInfo> videos,
+        List<VideoStreamInfo> videoStreams,
         List<AudioStreamInfo> allAudio,
         List<SubtitleStreamInfo> allSubs,
         string? videoArgs = null,
@@ -118,10 +118,10 @@ public static class CommandBuilder
         Console.WriteLine("  Stream selection:");
 
         // Video handling: if videoArgs is provided, we assume re-encoding; otherwise, we copy.
-        if (videos.Count > 0)
+        if (videoStreams.Count > 0)
         {
             string videoMode = videoArgs is not null ? "encode → HEVC Main10" : "copy";
-            foreach (var v in videos)
+            foreach (var v in videoStreams)
                 Console.WriteLine($"    Video       [{v.GlobalIndex}]: {v.Codec.ToUpper()} {v.Resolution} — {videoMode}");
         }
 
@@ -173,7 +173,7 @@ public static class CommandBuilder
 
         // Video maps: use explicit global indices rather than "-map 0:v", which would also
         // pick up embedded cover art / thumbnail streams that the caller did not select.
-        foreach (var v in videos)
+        foreach (var v in videoStreams)
             sb.Append($" -map 0:{v.GlobalIndex}");
 
         // Audio maps: track 0 (copy) is always present; surround and stereo are conditional.
@@ -232,13 +232,13 @@ public static class CommandBuilder
 
         // ── 7. Disposition flags ─────────────────────────────────────────────
         // Video: first output stream → default; all remaining streams explicitly cleared.
-        if (videos.Count > 0)
+        if (videoStreams.Count > 0)
         {
             // Get the actual first video stream index among the selected videos
             // (skipping attached pics) to set as default, since attached pics should not be
             // marked as default.
             int vidIdx = 0;
-            var firstVid = videos.Where(v => !v.AttachedPic)
+            var firstVid = videoStreams.Where(v => v.Disposition.AttachedPic == 0)
                             .OrderBy(v => v.GlobalIndex).ToList();
 
             // Make sure that we have at least one non-attached-pic video stream before trying to
@@ -246,17 +246,18 @@ public static class CommandBuilder
             // selected video streams are attached pics.
             if (firstVid.Count > 0)
             {
-                vidIdx = videos.IndexOf(firstVid.First());
+                vidIdx = videoStreams.IndexOf(firstVid.First());
             }
 
             // Loop through all selected video streams and set dispositions:
-            for (int i = 0; i < videos.Count; i++)
+            for (int i = 0; i < videoStreams.Count; i++)
             {
                 // Get the current video stream. 
-                var curVideo = videos[i];
+                var curVideo = videoStreams[i];
+                
 
                 // Attached pics are marked with the attached_pic disposition regardless of their position
-                if (curVideo.AttachedPic)
+                if (curVideo.Disposition.AttachedPic == 1)
                 {
                     sb.Append($" -disposition:v:{i} attached_pic");
                 }
@@ -315,14 +316,14 @@ public static class CommandBuilder
         // ── 8. Metadata ──────────────────────────────────────────────────────
         // Video metadata — synthesise a descriptive title from codec, resolution, and HDR type.
         // VideoStreamInfo carries no language or user-supplied title, so only -title is emitted.
-        for (int i = 0; i < videos.Count; i++)
+        for (int i = 0; i < videoStreams.Count; i++)
         {
-            var v = videos[i];
+            var v = videoStreams[i];
             string hdrSuffix = v.IsHdr
                 ? (v.IsDolbyVision ? " Dolby Vision"
-                   : v.IsHdr10     ? " HDR10"
-                   : v.IsHlg       ? " HLG"
-                   :                 " HDR")
+                   : v.IsHdr10 ? " HDR10"
+                   : v.IsHlg ? " HLG"
+                   : " HDR")
                 : "";
             string videoTitle = $"{v.Codec.ToUpper()} {v.Resolution}{hdrSuffix}";
             sb.Append($" -metadata:s:v:{i} title=\"{videoTitle}\"");
