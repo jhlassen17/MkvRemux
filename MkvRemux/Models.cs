@@ -1,7 +1,7 @@
 namespace MkvRemux;
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Audio
+  #region Audio
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -26,31 +26,36 @@ public record AudioStreamInfo(
     int BitsPerSample) : IEquatable<AudioStreamInfo>, IComparable<AudioStreamInfo>
 {
     /// <summary>
+    /// Codec priority for sorting and selection. Lower values indicate higher priority. 
+    /// The order is determined by common audio codecs and their typical quality, with special 
+    /// handling for certain profiles (e.g. TrueHD with Atmos is prioritized highest). 
+    /// Unrecognized codecs are assigned a default low priority of 99.
     /// Lower = higher priority. 1 = best, 99 = unknown / worst.
     /// </summary>
     public int CodecPriority => (Codec.ToLower(), Profile.ToLower()) switch
     {
-        ("truehd", var p) when p.Contains("atmos") => 1,
-        ("truehd", _) => 2,
-        ("dts", var p) when p.Contains("ma") => 3,   // DTS-HD MA
-        ("dts", var p) when p.Contains(":x") => 4,   // DTS:X
-        ("dts", var p) when p.Contains("hra") => 5,   // DTS-HD HRA
-        ("eac3", _) => 6,
-        ("dts", _) => 7,   // DTS core
-        ("ac3", _) => 8,
-        ("aac", _) => 9,
-        ("flac", var p) when p.Contains("flac") => 10,
-        ("alac", var p) when p.Contains("alac") => 11,
-        ("mp3", _) => 12,
-        ("pcm", var p) when p.StartsWith("pcm") => 13,
-        ("vorbis", _) => 14,
-        ("opus", _) => 15,
-        ("mp2", _) => 16,
-        _ => 99
+        ("truehd", var p)       when p.Contains("atmos")    => 1,
+        ("truehd", _)                                       => 2,
+        ("dts", var p)          when p.Contains("ma")       => 3,   // DTS-HD MA
+        ("dts", var p)          when p.Contains(":x")       => 4,   // DTS:X
+        ("dts", var p)          when p.Contains("hra")      => 5,   // DTS-HD HRA
+        ("eac3", _)                                         => 6,
+        ("dts", _)                                          => 7,   // DTS core
+        ("ac3", _)                                          => 8,
+        ("aac", _)                                          => 9,
+        ("flac", var p)         when p.Contains("flac")     => 10,
+        ("alac", var p)         when p.Contains("alac")     => 11,
+        ("mp3", _)                                          => 12,
+        ("pcm", var p)          when p.StartsWith("pcm")    => 13,
+        ("vorbis", _)                                       => 14,
+        ("opus", _)                                         => 15,
+        ("mp2", _)                                          => 16,
+        _                                                   => 99
     };
 
     /// <summary>
-    /// Returns a user-friendly display name for the audio stream, e.g. "DTS-HD MA 5.1" or "AAC 2.0", based on the codec and channel layout.
+    /// Returns a user-friendly display name for the audio stream, e.g. "DTS-HD MA 5.1" or "AAC 2.0", 
+    /// based on the codec and channel layout.
     /// </summary>
     public string DisplayName
     {
@@ -59,23 +64,23 @@ public record AudioStreamInfo(
             // Map common codecs and profiles to user-friendly labels, e.g. "DTS-HD MA" instead of just "dts".
             string codec = (Codec.ToLower(), Profile.ToLower()) switch
             {
-                ("truehd", var p) when p.Contains("atmos") => "TrueHD Atmos",
-                ("truehd", _) => "TrueHD",
-                ("dts", var p) when p.Contains("ma") => "DTS-HD MA",
-                ("dts", var p) when p.Contains(":x") => "DTS:X",
-                ("dts", var p) when p.Contains("hra") => "DTS-HD HRA",
-                ("eac3", _) => "E-AC3",
-                ("dts", _) => "DTS",
-                ("ac3", _) => "AC3",
-                ("aac", _) => "AAC",
-                ("flac", var p) when p.Contains("flac") => "FLAC",
-                ("alac", var p) when p.Contains("alac") => "ALAC",
-                ("mp3", _) => "MP3",
-                ("pcm", var p) when p.StartsWith("pcm") => "PCM",
-                ("mp2", _) => "MP2",
-                ("vorbis", _) => "Vorbis",
-                ("opus", _) => "Opus",
-                _ => Codec.ToUpper()
+                ("truehd", var p)       when p.Contains("atmos")    => "TrueHD Atmos",
+                ("truehd", _)                                       => "TrueHD",
+                ("dts", var p)          when p.Contains("ma")       => "DTS-HD MA",
+                ("dts", var p)          when p.Contains(":x")       => "DTS:X",
+                ("dts", var p)          when p.Contains("hra")      => "DTS-HD HRA",
+                ("eac3", _)                                         => "E-AC3",
+                ("dts", _)                                          => "DTS",
+                ("ac3", _)                                          => "AC3",
+                ("aac", _)                                          => "AAC",
+                ("flac", var p)         when p.Contains("flac")     => "FLAC",
+                ("alac", var p)         when p.Contains("alac")     => "ALAC",
+                ("mp3", _)                                          => "MP3",
+                ("pcm", var p)          when p.StartsWith("pcm")    => "PCM",
+                ("mp2", _)                                          => "MP2",
+                ("vorbis", _)                                       => "Vorbis",
+                ("opus", _)                                         => "Opus",
+                _                                                   => Codec.ToUpper()
             };
 
             // Return a string like "DTS-HD MA 5.1" or "AAC 2.0" for display in the summary.
@@ -98,7 +103,7 @@ public record AudioStreamInfo(
                 if (l.StartsWith("6.1")) return "6.1";
                 if (l.StartsWith("5.1")) return "5.1";
                 if (l.StartsWith("4.0")) return "4.0";
-                //if (l.StartsWith("3.0")) return "3.0";
+                if (l.StartsWith("3.0")) return "3.0";      // I don't think this exists but just in case
                 if (l.StartsWith("2.1")) return "2.1";
                 if (l == "stereo") return "2.0";
                 if (l == "mono") return "1.0";
@@ -127,7 +132,7 @@ public record AudioStreamInfo(
         >= 8 => 768,
         >= 6 => 640,
         >= 4 => 384,
-        2 => 256,
+        >= 2 => 256,
         _ => 192
     };
 
@@ -208,6 +213,7 @@ public record AudioStreamInfo(
             }
         }
 
+        // Return the result of the first non-zero comparison, or 0 if all comparisons are equal.
         return tmpResult;
     }
 
@@ -227,9 +233,10 @@ public record AudioStreamInfo(
         );
 }
 
+#endregion
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Subtitle
+#region Subtitle
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -239,6 +246,8 @@ public record AudioStreamInfo(
 /// <param name="Language">The language of the subtitle stream.</param>
 /// <param name="Title">The title of the subtitle stream.</param>
 /// <param name="Codec">The codec of the subtitle stream.</param>
+/// <param name="IsHearingImpaired">Whether the subtitle stream is flagged as hearing 
+/// impaired (SDH) by ffmpeg.</param>
 public record SubtitleStreamInfo(
     int GlobalIndex,
     string Language,
@@ -352,8 +361,10 @@ public record SubtitleStreamInfo(
             this.GlobalIndex, this.DisplayName, this.EqualityContract);
 }
 
+#endregion
+
 // ─────────────────────────────────────────────────────────────────────────────
-//  Video / HDR
+#region Video / HDR
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -533,6 +544,7 @@ public record ContentLightLevel(int MaxContent, int MaxAverage) : IEquatable<Con
 /// <param name="MasteringDisplay">The HDR10 mastering display metadata.</param>
 /// <param name="MaxCll">The content light level (MaxCLL / MaxFALL) from HDR10 SEI.</param>
 /// <param name="IsDolbyVision">Indicates if the stream is Dolby Vision.</param>
+/// <param name="StreamDuration">The duration of the video stream.</param>
 public record VideoStreamInfo(
     int GlobalIndex,
     string Codec,
@@ -544,7 +556,8 @@ public record VideoStreamInfo(
     string ColorTransfer,
     HdrMasteringDisplay? MasteringDisplay,
     ContentLightLevel? MaxCll,
-    bool IsDolbyVision) : IEquatable<VideoStreamInfo>, IComparable<VideoStreamInfo>
+    bool IsDolbyVision,
+    TimeSpan StreamDuration) : IEquatable<VideoStreamInfo>, IComparable<VideoStreamInfo>
 {
     /// <summary>
     /// True when the stream carries HDR metadata or uses an HDR transfer curve.
@@ -683,8 +696,10 @@ public record VideoStreamInfo(
         HashCode.Combine(this.Codec, this.Width, this.Height, this.Resolution, this.ColorPrimaries, this.IsHdr10);
 }
 
+#endregion
+
 // ─────────────────────────────────────────────────────────────────────────────
-//  Enums
+#region Enums
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -707,3 +722,5 @@ public enum LosslessFormat
     Alac,       // ALAC codec (Apple Lossless)
     Pcm         // Uncompressed PCM (WAV)
 }
+
+#endregion
