@@ -45,10 +45,10 @@ static class VideoArgBuilder
                 sb.Append($" -rc vbr -cq {cq} -b:v 0");
                 sb.Append(" -profile:v main10 -pix_fmt p010le");
                 AppendColorMetadata(sb, video);
-                if (video.MasteringDisplay is not null)
-                    sb.Append($" -master_display \"{video.MasteringDisplay.ToFfmpegString()}\"");
-                if (video.MaxCll is not null)
-                    sb.Append($" -max_cll \"{video.MaxCll.ToFfmpegString()}\"");
+                // Mastering display and MaxCLL data are carried as AVFrame side data
+                // (AV_FRAME_DATA_MASTERING_DISPLAY_METADATA / _CONTENT_LIGHT_LEVEL) from
+                // the software HEVC decoder and are embedded in the output SEI by NVENC
+                // automatically — no separate flag needed or accepted here.
                 break;
 
             // ── QuickSync ────────────────────────────────────────────────────
@@ -57,10 +57,7 @@ static class VideoArgBuilder
                 sb.Append($" -global_quality {cq} -look_ahead 1");
                 sb.Append(" -profile:v main10 -pix_fmt p010le");
                 AppendColorMetadata(sb, video);
-                if (video.MasteringDisplay is not null)
-                    sb.Append($" -master_display \"{video.MasteringDisplay.ToFfmpegString()}\"");
-                if (video.MaxCll is not null)
-                    sb.Append($" -max_cll \"{video.MaxCll.ToFfmpegString()}\"");
+                // Same as NVENC: mastering display / MaxCLL flow through AVFrame side data.
                 break;
 
             // ── libx265 (software) ───────────────────────────────────────────
