@@ -577,12 +577,15 @@ public partial class MKVUtil
     /// fps, quality, size, time, bitrate, and speed information.
     /// </summary>
     /// <returns>A compiled <see cref="Regex"/> instance.</returns>
-    [GeneratedRegex(@"frame=\s*(?<frame>\d+)\s+" +
-    @"fps=\s*(?<fps>[\d.]+)\s+" +
-    @"q=\s*(?<q>-?[\d.]+)\s+" +
-    @"size=\s*(?<size>[\d.]+\s*(?:[KMGT]i?B|B))\s+" +
-    @"time=(?<time>\d{2}:\d{2}:\d{2}\.\d+|N/A)\s+" +
-    @"bitrate=\s*(?<bitrate>[\d.]+\s*kbits/s|N/A)\s+" +
-    @"speed=\s*(?<speed>[\d.]+|N/A)x?")]
+    [GeneratedRegex(
+        @"frame=\s*(?<frame>\d+)\s+" +
+        @"fps=\s*(?<fps>[\d.]+)\s+" +
+        @"q=\s*(?<q>-?[\d.]+)\s+" +          // capture first q
+        @"(?:q=\s*-?[\d.]+\s+)*" +            // skip any extra q= fields ← FIX
+        @"size=\s*(?<size>[\d.]+\s*(?:[KMGT]i?B|B))\s+" +
+        @"time=(?<time>\d{2}:\d{2}:\d{2}\.\d+|N/A)\s+" +
+        @"bitrate=\s*(?<bitrate>[\d.]+\s*kbits/s|N/A)\s+" +
+        @"speed=\s*(?<speed>[\d.]+x|N/A)"
+    )]
     private static partial Regex FfmpegProgressRegex();
 }
