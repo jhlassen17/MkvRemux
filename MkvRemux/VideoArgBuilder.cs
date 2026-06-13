@@ -83,7 +83,7 @@ static class VideoArgBuilder
     /// <param name="encoder">The hardware encoder used.</param>
     /// <param name="cq">The constant quality or CRF value.</param>
     /// <param name="nvencPreset">The NVENC preset used.</param>
-    public static void PrintSummary(VideoStreamInfo video, HwEncoder encoder, int cq, string nvencPreset)
+    public static void PrintSummary(List<VideoStreamInfo> video, HwEncoder encoder, int cq, string nvencPreset)
     {
         // Get a user-friendly name for the encoder
         string name = encoder switch
@@ -109,31 +109,37 @@ static class VideoArgBuilder
         if (encoder == HwEncoder.SoftwareX265)
             Console.WriteLine("    [NOTE] Software encoding is significantly slower than GPU.");
 
-        // Print the source video properties
-        Console.WriteLine($"    Source     : {video.Codec.ToUpper()} {video.Resolution} {video.PixFmt}");
+        Console.WriteLine();
 
-        // Print HDR information if the source is HDR, otherwise indicate it's SDR
-        if (video.IsHdr)
+        foreach (var videoStream in video)
         {
-            // Determine the HDR type based on the video properties
-            string hdrType = video.IsDolbyVision ? "Dolby Vision"
-                           : video.IsHdr10        ? "HDR10"
-                           : video.IsHlg          ? "HLG"
-                           :                        "HDR";
 
-            // Print the HDR type and relevant metadata
-            Console.WriteLine($"    HDR        : {hdrType}  ({video.ColorTransfer})");
-            if (video.MasteringDisplay is not null)
-                Console.WriteLine($"    MasterDisp : {video.MasteringDisplay.ToFfmpegString()}");
-            if (video.MaxCll is not null)
-                Console.WriteLine($"    MaxCLL     : {video.MaxCll.ToFfmpegString()}");
-            if (video.IsDolbyVision)
-                Console.WriteLine("    [WARN] Dolby Vision dynamic metadata cannot survive re-encoding.");
-        }
-        else
-        {
-            // Source is SDR, so indicate that in the summary
-            Console.WriteLine("    HDR        : none (SDR)");
+            // Print the source video properties
+            Console.WriteLine($"    Source     : {videoStream.Codec.ToUpper()} {videoStream.Resolution} {videoStream.PixFmt}");
+
+            // Print HDR information if the source is HDR, otherwise indicate it's SDR
+            if (videoStream.IsHdr)
+            {
+                // Determine the HDR type based on the video properties
+                string hdrType = videoStream.IsDolbyVision ? "Dolby Vision"
+                               : videoStream.IsHdr10 ? "HDR10"
+                               : videoStream.IsHlg ? "HLG"
+                               : "HDR";
+
+                // Print the HDR type and relevant metadata
+                Console.WriteLine($"    HDR        : {hdrType}  ({videoStream.ColorTransfer})");
+                if (videoStream.MasteringDisplay is not null)
+                    Console.WriteLine($"    MasterDisp : {videoStream.MasteringDisplay.ToFfmpegString()}");
+                if (videoStream.MaxCll is not null)
+                    Console.WriteLine($"    MaxCLL     : {videoStream.MaxCll.ToFfmpegString()}");
+                if (videoStream.IsDolbyVision)
+                    Console.WriteLine("    [WARN] Dolby Vision dynamic metadata cannot survive re-encoding.");
+            }
+            else
+            {
+                // Source is SDR, so indicate that in the summary
+                Console.WriteLine("    HDR        : none (SDR)");
+            }
         }
     }
 

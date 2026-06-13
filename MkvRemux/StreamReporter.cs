@@ -14,9 +14,9 @@ static class StreamReporter
     /// <param name="audio">The list of audio streams.</param>
     /// <param name="subs">The list of subtitle streams.</param>
     public static void Print(
-        string                   filePath,
-        VideoStreamInfo?         video,
-        List<AudioStreamInfo>    audio,
+        string filePath,
+        List<VideoStreamInfo> video,
+        List<AudioStreamInfo> audio,
         List<SubtitleStreamInfo> subs)
     {
         // ── File Info ───────────────────────────────────────────────────────────
@@ -32,45 +32,51 @@ static class StreamReporter
 
         // ── Video ────────────────────────────────────────────────────────────
         WriteHeader("VIDEO");
-        if (video is null)
+        if (video is null || video.Count > 0)
         {
             // No video stream found
-            Console.WriteLine("  (no video stream)");
+            Console.WriteLine("  (no video streams)");
         }
         else
         {
             // Print basic video info
-            Console.WriteLine($"  [{video.GlobalIndex}] {video.Codec.ToUpper()}  {video.Resolution}  {video.PixFmt}");
-
-            // Print HDR info if applicable
-            if (video.IsHdr)
+            foreach (var v in video)
             {
-                // Determine HDR type for display
-                string hdrType = video.IsDolbyVision ? "Dolby Vision"
-                               : video.IsHdr10       ? "HDR10"
-                               : video.IsHlg         ? "HLG"
-                               :                       "HDR";
+                Console.WriteLine($"  [{v.GlobalIndex}] {v.Codec.ToUpper()}  {v.Resolution}  {v.PixFmt}");
 
-                // Print detailed color and HDR info
-                Console.WriteLine($"      HDR        : {hdrType}");
-                Console.WriteLine($"      Transfer   : {video.ColorTransfer}");
-                Console.WriteLine($"      Primaries  : {video.ColorPrimaries}");
-                Console.WriteLine($"      ColorSpace : {video.ColorSpace}");
 
-                // Print mastering display and max CLL if available
-                if (video.MasteringDisplay is not null)
-                    Console.WriteLine($"      MasterDisp : {video.MasteringDisplay.ToFfmpegString()}");
-                if (video.MaxCll is not null)
-                    Console.WriteLine($"      MaxCLL     : {video.MaxCll.ToFfmpegString()}");
-                if (video.IsDolbyVision)
-                    Console.WriteLine("      [NOTE] Dolby Vision metadata cannot survive re-encoding");
+                // Print HDR info if applicable
+                if (v.IsHdr)
+                {
+                    // Determine HDR type for display
+                    string hdrType = v.IsDolbyVision ? "Dolby Vision"
+                                   : v.IsHdr10 ? "HDR10"
+                                   : v.IsHlg ? "HLG"
+                                   : "HDR";
+
+                    // Print detailed color and HDR info
+                    Console.WriteLine($"      HDR        : {hdrType}");
+                    Console.WriteLine($"      Transfer   : {v.ColorTransfer}");
+                    Console.WriteLine($"      Primaries  : {v.ColorPrimaries}");
+                    Console.WriteLine($"      ColorSpace : {v.ColorSpace}");
+
+                    // Print mastering display and max CLL if available
+                    if (v.MasteringDisplay is not null)
+                        Console.WriteLine($"      MasterDisp : {v.MasteringDisplay.ToFfmpegString()}");
+                    if (v.MaxCll is not null)
+                        Console.WriteLine($"      MaxCLL     : {v.MaxCll.ToFfmpegString()}");
+                    if (v.IsDolbyVision)
+                        Console.WriteLine("      [NOTE] Dolby Vision metadata cannot survive re-encoding");
+                }
+                else
+                {
+                    // For SDR content, color info is often missing or unreliable, but we'll print it if available
+                    Console.WriteLine($"      SDR  primaries={v.ColorPrimaries}  trc={v.ColorTransfer}");
+                }
             }
-            else
-            {
-                // For SDR content, color info is often missing or unreliable, but we'll print it if available
-                Console.WriteLine($"      SDR  primaries={video.ColorPrimaries}  trc={video.ColorTransfer}");
-            }
+            Console.WriteLine();
         }
+
         Console.WriteLine();
 
         // ── Audio ─────────────────────────────────────────────────────────────
@@ -176,7 +182,7 @@ static class StreamReporter
     private static string FormatSize(long bytes)
     {
         if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F2} GB";
-        if (bytes >= 1_048_576)     return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
         return $"{bytes / 1024.0:F0} KB";
     }
 }

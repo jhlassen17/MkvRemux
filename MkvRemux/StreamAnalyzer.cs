@@ -17,7 +17,7 @@ static class StreamAnalyzer
     /// <param name="inputPath">The path to the input file.</param>
     /// <returns>A tuple containing the video, audio, and subtitle stream info.</returns>
     /// <exception cref="InvalidOperationException"></exception>
-    public static (VideoStreamInfo? Video,
+    public static (List<VideoStreamInfo> Video,
                    List<AudioStreamInfo> Audio,
                    List<SubtitleStreamInfo> Subtitles) Analyze(string inputPath)
     {
@@ -47,9 +47,9 @@ static class StreamAnalyzer
             ?? throw new InvalidOperationException("ffprobe JSON has no 'streams' array.");
 
         // Set up variables to hold the stream info. We assume at most one video stream, but can have multiple audio and subtitle streams.
-        VideoStreamInfo? video = null;              // Assumes only one video stream; if multiple are present, only the last processed will be stored
-        var audio = new List<AudioStreamInfo>();
-        var subtitles = new List<SubtitleStreamInfo>();
+        var video = new List<VideoStreamInfo>(2) ;              // Assumes only one video stream; if multiple are present, only the last processed will be stored
+        var audio = new List<AudioStreamInfo>(10);
+        var subtitles = new List<SubtitleStreamInfo>(20);
 
         // Iterate over the streams and extract relevant information based on the codec type
         foreach (var s in streams)
@@ -72,7 +72,7 @@ static class StreamAnalyzer
                 // Video Stream
                 case "video" when video is null:
                     // TODO: Allow multiple video streams and return a list, like we do for audio and subtitles. For now, just take the first one we encounter.
-                    video = ParseVideo(s, idx, codec);
+                    video.Add(ParseVideo(s, idx, codec));
                     break;
 
                 // Audio Stream

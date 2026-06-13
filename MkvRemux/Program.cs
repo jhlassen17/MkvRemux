@@ -398,14 +398,14 @@ public class Program
             if (!infoMode) Console.WriteLine($"  Output : {outputPath}");
 
             // Initialize variables to hold stream information. We'll fill these by analyzing the input file with ffprobe.
-            VideoStreamInfo? videoInfo;
+            List<VideoStreamInfo> videoStreams;
             List<AudioStreamInfo> audioStreams;
             List<SubtitleStreamInfo> subtitleStreams;
 
             try
             {
                 // Analyze the input file to get stream information.
-                (videoInfo, audioStreams, subtitleStreams) = StreamAnalyzer.Analyze(inputPath);
+                (videoStreams, audioStreams, subtitleStreams) = StreamAnalyzer.Analyze(inputPath);
             }
             catch (Exception ex)
             {
@@ -420,7 +420,7 @@ public class Program
             if (infoMode)
             {
                 // If we're in info mode, just print the stream information and skip processing.
-                StreamReporter.Print(inputPath, videoInfo, audioStreams, subtitleStreams);
+                StreamReporter.Print(inputPath, videoStreams, audioStreams, subtitleStreams);
                 processed++;
                 continue;
             }
@@ -442,7 +442,7 @@ public class Program
             // the selected encoder and quality settings.
             if (encodeVideo && resolvedEncoder is not null)
             {
-                if (videoInfo is null)
+                if (videoStreams is null)
                 {
                     Console.Error.WriteLine("  [ERROR] No video stream — cannot encode.");
                     failed++;
@@ -455,9 +455,9 @@ public class Program
                 Console.WriteLine("  Encoding configuration:");
 
                 // Print a summary of the video encoding configuration, including the selected encoder and quality settings.
-                VideoArgBuilder.PrintSummary(videoInfo, resolvedEncoder.Value, cq, nvencPreset);
+                VideoArgBuilder.PrintSummary(videoStreams, resolvedEncoder.Value, cq, nvencPreset);
                 // Build the ffmpeg arguments for video encoding based on the selected encoder and quality settings.
-                videoArgs = VideoArgBuilder.Build(videoInfo, resolvedEncoder.Value, cq, nvencPreset);
+                videoArgs = VideoArgBuilder.Build(videoStreams.FirstOrDefault(), resolvedEncoder.Value, cq, nvencPreset);
             }
 
             // Build ffmpeg command
@@ -468,7 +468,7 @@ public class Program
                 // stream information, video encoding args, lossless audio options, and stereo downmix mode.
                 ffmpegArgs = CommandBuilder.Build(
                     inputPath, outputPath,
-                    videoInfo, audioStreams, subtitleStreams,
+                    videoStreams.FirstOrDefault(), audioStreams, subtitleStreams,
                     videoArgs, losslessFmts, stereoMode);
             }
             catch (Exception ex)
@@ -500,7 +500,7 @@ public class Program
             // Run ffmpeg 
             Console.WriteLine();
             Console.WriteLine();
-            var (runOutput, exitCode) = MKVUtil.RunffMpeg(ffmpegArgs, videoInfo?.StreamDuration ?? default, cts.Token);
+            var (runOutput, exitCode) = MKVUtil.RunffMpeg(ffmpegArgs, videoStreams.FirstOrDefault()?.StreamDuration ?? default, cts.Token);
             Console.WriteLine();
 
             // Check the exit code from ffmpeg to determine if the process succeeded or failed, and report the result.
