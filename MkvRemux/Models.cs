@@ -558,7 +558,7 @@ public record VideoStreamInfo(
     ContentLightLevel? MaxCll,
     bool IsDolbyVision,
     TimeSpan StreamDuration, 
-    bool AttachedPic) : IEquatable<VideoStreamInfo>, IComparable<VideoStreamInfo>
+    VideoStreamDisposition Disposition) : IEquatable<VideoStreamInfo>, IComparable<VideoStreamInfo>
 {
     /// <summary>
     /// True when the stream carries HDR metadata or uses an HDR transfer curve.
@@ -695,7 +695,7 @@ public record VideoStreamInfo(
     /// <returns>The hash code for the current object.</returns>
     public override int GetHashCode() =>
         HashCode.Combine(HashCode.Combine(this.Codec, this.Width, this.Height, this.Resolution,
-            this.ColorPrimaries, this.IsHdr10), this.AttachedPic, this.StreamDuration);
+            this.ColorPrimaries, this.IsHdr10), this.Disposition, this.StreamDuration);
 }
 
 #endregion

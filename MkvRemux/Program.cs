@@ -486,7 +486,8 @@ public class Program
             Console.WriteLine("  ─── ffmpeg command ───────────────────────────────────────────────────");
             Console.WriteLine($"  ffmpeg {ffmpegArgs}");
             Console.WriteLine("  ──────────────────────────────────────────────────────────────────────");
-            Console.WriteLine();
+            Console.WriteLine(Environment.NewLine);
+            Console.WriteLine(Environment.NewLine);
 
             // If we're in dry-run mode, skip executing ffmpeg and just print the command.
             if (dryRun)

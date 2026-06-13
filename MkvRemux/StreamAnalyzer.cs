@@ -124,7 +124,27 @@ static class StreamAnalyzer
         string colorPri = s["color_primaries"]?.GetValue<string>() ?? "";
         string colorTrc = s["color_transfer"]?.GetValue<string>() ?? "";
         string durationStr = s["tags"]?["DURATION"]?.GetValue<string>() ?? "";
-        bool attachedPic = (s["disposition"]?["attached_pic"]?.GetValue<int>() ?? 0) == 1;
+        var disposition = new VideoStreamDisposition(
+            Default: s["disposition"]?["default"]?.GetValue<int>() ?? 0,
+            Forced: s["disposition"]?["forced"]?.GetValue<int>() ?? 0,
+            Comment: s["disposition"]?["comment"]?.GetValue<int>() ?? 0,
+            Metadata: s["disposition"]?["metadata"]?.GetValue<int>() ?? 0,
+            AttachedPic: s["disposition"]?["attached_pic"]?.GetValue<int>() ?? 0,
+            TimedThumbnails: s["disposition"]?["timed_thumbnails"]?.GetValue<int>() ?? 0,
+            StillImage: s["disposition"]?["still_image"]?.GetValue<int>() ?? 0,
+            Dependent: s["disposition"]?["dependent"]?.GetValue<int>() ?? 0,
+            NonDiegetic: s["disposition"]?["non_diegetic"]?.GetValue<int>() ?? 0,
+            Dub: s["disposition"]?["dub"]?.GetValue<int>() ?? 0,
+            Original: s["disposition"]?["original"]?.GetValue<int>() ?? 0,
+            Lyrics: s["disposition"]?["lyrics"]?.GetValue<int>() ?? 0,
+            Karaoke: s["disposition"]?["karaoke"]?.GetValue<int>() ?? 0,
+            HearingImpaired: s["disposition"]?["hearing_impaired"]?.GetValue<int>() ?? 0,
+            VisualImpaired: s["disposition"]?["visual_impaired"]?.GetValue<int>() ?? 0,
+            CleanEffects: s["disposition"]?["clean_effects"]?.GetValue<int>() ?? 0,
+            Descriptions: s["disposition"]?["descriptions"]?.GetValue<int>() ?? 0,
+            Captions: s["disposition"]?["captions"]?.GetValue<int>() ?? 0
+        );
+
         TimeSpan duration = ParseFfprobeDuration(durationStr);
 
         // Initialize variables for HDR mastering display, content light level, and Dolby Vision flag
@@ -171,8 +191,8 @@ static class StreamAnalyzer
         // Create and return a VideoStreamInfo object with the extracted information
         return new VideoStreamInfo(idx, codec, width, height, pixFmt,
                                    colorSp, colorPri, colorTrc,
-                                   masteringDisplay, maxCll, isDovi, duration, 
-                                   attachedPic);
+                                   masteringDisplay, maxCll, isDovi, duration,
+                                   disposition);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
