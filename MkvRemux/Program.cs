@@ -442,7 +442,7 @@ public class Program
             // the selected encoder and quality settings.
             if (encodeVideo && resolvedEncoder is not null)
             {
-                if (videoStreams is null)
+                if (videoStreams.Count == 0)
                 {
                     Console.Error.WriteLine("  [ERROR] No video stream — cannot encode.");
                     failed++;
@@ -456,8 +456,8 @@ public class Program
 
                 // Print a summary of the video encoding configuration, including the selected encoder and quality settings.
                 VideoArgBuilder.PrintSummary(videoStreams, resolvedEncoder.Value, cq, nvencPreset);
-                // Build the ffmpeg arguments for video encoding based on the selected encoder and quality settings.
-                videoArgs = VideoArgBuilder.Build(videoStreams.FirstOrDefault(), resolvedEncoder.Value, cq, nvencPreset);
+                // Build per-stream ffmpeg arguments for all video streams.
+                videoArgs = VideoArgBuilder.Build(videoStreams, resolvedEncoder.Value, cq, nvencPreset);
             }
 
             // Build ffmpeg command
@@ -468,7 +468,7 @@ public class Program
                 // stream information, video encoding args, lossless audio options, and stereo downmix mode.
                 ffmpegArgs = CommandBuilder.Build(
                     inputPath, outputPath,
-                    videoStreams.FirstOrDefault(), audioStreams, subtitleStreams,
+                    videoStreams, audioStreams, subtitleStreams,
                     videoArgs, losslessFmts, stereoMode);
             }
             catch (Exception ex)
@@ -500,7 +500,7 @@ public class Program
             // Run ffmpeg 
             Console.WriteLine();
             Console.WriteLine();
-            var (runOutput, exitCode) = MKVUtil.RunffMpeg(ffmpegArgs, videoStreams.FirstOrDefault()?.StreamDuration ?? default, cts.Token);
+            var (runOutput, exitCode) = MKVUtil.RunffMpeg(ffmpegArgs, TimeSpan.FromSeconds(videoStreams.Sum(a => a.StreamDuration.TotalSeconds)), cts.Token);
             Console.WriteLine();
 
             // Check the exit code from ffmpeg to determine if the process succeeded or failed, and report the result.

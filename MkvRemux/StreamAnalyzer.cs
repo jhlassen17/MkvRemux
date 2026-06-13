@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Net.Mime;
 using System.Text;
 using System.Text.Json.Nodes;
 
@@ -69,9 +70,10 @@ static class StreamAnalyzer
             // Handle each codec type accordingly
             switch (codecType)
             {
-                // Video Stream
-                case "video" when video is null:
-                    // TODO: Allow multiple video streams and return a list, like we do for audio and subtitles. For now, just take the first one we encounter.
+                // Video Stream — collect all video streams (cover art tracks such as MJPEG/PNG
+                // will appear here too; CommandBuilder maps by GlobalIndex so nothing unwanted
+                // ends up in the output unless the caller explicitly maps it).
+                case "video":
                     video.Add(ParseVideo(s, idx, codec));
                     break;
 
@@ -122,6 +124,7 @@ static class StreamAnalyzer
         string colorPri = s["color_primaries"]?.GetValue<string>() ?? "";
         string colorTrc = s["color_transfer"]?.GetValue<string>() ?? "";
         string durationStr = s["tags"]["DURATION"]?.GetValue<string>() ?? "";
+        bool attachedPic = bool.Parse(s["disposition"]["attached_pic"]?.GetValue<string>() ?? "false");
         TimeSpan duration = ParseFfprobeDuration(durationStr);
 
         // Initialize variables for HDR mastering display, content light level, and Dolby Vision flag
@@ -168,7 +171,8 @@ static class StreamAnalyzer
         // Create and return a VideoStreamInfo object with the extracted information
         return new VideoStreamInfo(idx, codec, width, height, pixFmt,
                                    colorSp, colorPri, colorTrc,
-                                   masteringDisplay, maxCll, isDovi, duration);
+                                   masteringDisplay, maxCll, isDovi, duration, 
+                                   attachedPic);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

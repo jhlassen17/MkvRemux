@@ -32,7 +32,7 @@ static class StreamReporter
 
         // ── Video ────────────────────────────────────────────────────────────
         WriteHeader("VIDEO");
-        if (video is null || video.Count > 0)
+        if (video is null || video.Count == 0)
         {
             // No video stream found
             Console.WriteLine("  (no video streams)");
