@@ -38,7 +38,18 @@ MkvRemux [options] <path>
 | `--recursive` | Scan subdirectories recursively |
 | `--skip-existing` | Skip any file whose `.remux.mkv` output already exists and was fully processed |
 | `--stereo <mode>` | Stereo downmix mode: `dolby` (default) or `default` (ffmpeg built-in matrix) |
-| `--dry-run` | Print what would be done without running ffmpeg |
+| `--dry-run` | Print what would be done without running `ffmpeg` |
+| `--encode-video` | Re-encode video to HEVC Main10 |
+| `--encoder <nvenc\|qsv\|sw>` | Force encoder (nvenc = NVENC 10 bit, qsv = Intel Quicksync, sw = libx265 CPU fallback) |
+| `--allow-sw-fallback` | Fall back to libx265 when no GPU encoder found |
+| `--cq <0-51>` | Quality: CQ (NVENC), GQ (QSV), CRF (x265). Default 19 |
+| `--nvenc-preset <p1-p7>` | NVENC preset p1=fastest…p7=best. Default p4 |
+| `--lossless <flac\|alac\|pcm>` | Add lossless track(s); repeatable or comma-separated |
+| `--info` | Print stream info only, no processing |
+| `--allow-dv` | Allow Dolby Vision metadata (no video encoding) |
+| `--yes-i-know-what-im-doing, -y` | Bypass warnings about incompatible options and approve any prompts |
+| `--output-dir <dir>` | (Batch) write all outputs to this directory |
+| `-h, --help` | Show this help |
 
 ### Examples
 
