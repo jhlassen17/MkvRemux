@@ -12,6 +12,7 @@ namespace MkvRemux;
 ///   5.1(back)  → uses BL/BR channel names
 ///   7.1        → mixes all four surround channels (SL/SR at -3dB, BL/BR at -6dB)
 ///   4.0 / quad → blends rear into front without a center
+///   2.1        → mixes LFE into both ears
 ///   ≤ stereo   → no filter applied (passthrough)
 /// </summary>
 public static class StereoDownmix
@@ -42,34 +43,39 @@ public static class StereoDownmix
             // ── 7.1 (FL FR FC LFE BL BR SL SR) ────────────────────────────
             8 =>
                 "pan=stereo" +
-                "|FL=FC*0.707+FL+SL*0.707+BL*0.5" +
-                "|FR=FC*0.707+FR+SR*0.707+BR*0.5",
+                "|c0=0.707*FC+1.0*FL+0.707*SL+0.5*BL" +   // 1.0* not 1*, uppercase
+                "|c1=0.707*FC+1.0*FR+0.707*SR+0.5*BR",
 
             // ── 6.1 (FL FR FC LFE BC SL SR) ────────────────────────────────
             7 =>
                 "pan=stereo" +
-                "|FL=FC*0.707+FL+SL*0.707+BC*0.5" +
-                "|FR=FC*0.707+FR+SR*0.707+BC*0.5",
+                "|c0=0.707*FC+1.0*FL+0.707*SL+0.5*BC" +
+                "|c1=0.707*FC+1.0*FR+0.707*SR+0.5*BC",
 
             // ── 5.1(side) (FL FR FC LFE SL SR) ─────────────────────────────
             6 when layout.Contains("side") =>
                 "pan=stereo" +
-                "|FL=FC*0.707+FL+SL*0.707" +
-                "|FR=FC*0.707+FR+SR*0.707",
+                "|c0=0.707*FC+1.0*FL+0.707*SL" +
+                "|c1=0.707*FC+1.0*FR+0.707*SR",
 
             // ── 5.1 / 5.1(back) (FL FR FC LFE BL BR) ───────────────────────
             6 =>
                 "pan=stereo" +
-                "|FL=FC*0.707+FL+BL*0.707" +
-                "|FR=FC*0.707+FR+BR*0.707",
+                "|c0=0.707*FC+1.0*FL+0.707*BL" +
+                "|c1=0.707*FC+1.0*FR+0.707*BR",
 
             // ── 4.0 quad (FL FR BL BR) ──────────────────────────────────────
             4 =>
                 "pan=stereo" +
-                "|FL=FL+BL*0.707" +
-                "|FR=FR+BR*0.707",
+                "|c0=1.0*FL+0.707*BL" +
+                "|c1=1.0*FR+0.707*BR",
 
-            // ── Unknown layout ───────────────────────────────────────────────
+            // ── 2.1 Stereo with LFE (FL FR LFE) ────────────────────────────
+            3 =>
+                "pan=stereo" +
+                "|c0=1.0*FL+0.707*LFE" +
+                "|c1=1.0*FR+0.707*LFE",
+
             _ => null
         };
     }
