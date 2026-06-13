@@ -1,8 +1,16 @@
 {
   "profiles": {
-    "MkvRemux": {
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    },
+    "MkvRemux - Folder": {
       "commandName": "Project",
-      "commandLineArgs": "\"J:\\jeff\\files\\Temp\\Travel\\Remux\" --encode-video --encoder nvenc --allow-sw-fallback --cq 19 --nvenc-preset p4 --stereo-filter dolby --skip-existing  --recursive --output-dir \"J:\\jeff\\files\\Temp\\JHL03\" "
+      "commandLineArgs": "\"J:\\jeff\\files\\Temp\\Travel\\Remux\" --encode-video --encoder nvenc --allow-sw-fallback --cq 19 --nvenc-preset p4 --stereo-filter dolby --skip-existing --recursive --output-dir \"J:\\jeff\\files\\Temp\\Travel\\Temp\""
+    },
+    "MkvRemux - File": {
+      "commandName": "Project",
+      "commandLineArgs": "\"J:\\jeff\\files\\Temp\\Travel\\Remux\\Independence Day - Extended Edition (1996) {tmdb-602}\\Independence Day (1996) {tmdb-602} - {edition-Extended Edition} [2160p] [UHD Blu-ray] [HDR10] [DTS-X7.1][h265].mkv\" \"J:\\jeff\\files\\Temp\\Travel\\Remux\\Independence Day - Extended Edition (1996) {tmdb-602}\\JeffTest01.mkv\" --encoder nvenc --allow-sw-fallback --cq 19 --nvenc-preset p4 --stereo-filter dolby --skip-existing  --recursive"
     }
   }
 }
