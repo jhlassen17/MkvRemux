@@ -123,8 +123,8 @@ static class StreamAnalyzer
         string colorSp = s["color_space"]?.GetValue<string>() ?? "";
         string colorPri = s["color_primaries"]?.GetValue<string>() ?? "";
         string colorTrc = s["color_transfer"]?.GetValue<string>() ?? "";
-        string durationStr = s["tags"]["DURATION"]?.GetValue<string>() ?? "";
-        bool attachedPic = bool.Parse(s["disposition"]["attached_pic"]?.GetValue<string>() ?? "false");
+        string durationStr = s["tags"]?["DURATION"]?.GetValue<string>() ?? "";
+        bool attachedPic = (s["disposition"]?["attached_pic"]?.GetValue<int>() ?? 0) == 1;
         TimeSpan duration = ParseFfprobeDuration(durationStr);
 
         // Initialize variables for HDR mastering display, content light level, and Dolby Vision flag
