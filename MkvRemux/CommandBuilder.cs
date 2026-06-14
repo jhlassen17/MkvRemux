@@ -113,6 +113,48 @@ public static class CommandBuilder
         // ── 4. Stereo filter ─────────────────────────────────────────────────
         string? panFilter = StereoDownmix.GetFilter(stereoMode, mainAudio);
 
+        // ── 4b. filter_complex / asplit planning ──────────────────────────────
+        // When needsSurround is true the same source stream must be decoded for
+        // both the AAC-surround track and the AAC-stereo track (the copy track
+        // never decodes and is unaffected).  Rather than letting ffmpeg spawn two
+        // separate decoder instances we decode once and fork with asplit.
+        //
+        // If lossless re-encodes are also requested they join the same split,
+        // since each would otherwise add yet another decoder instance.
+        //
+        // When needsSurround is false there is at most one encoded track from this
+        // source (the stereo downmix for an AAC-surround source), so no split is
+        // needed and the existing -filter:a / -ac approach is kept as-is.
+        string? filterComplex = null;
+        string surroundMapSpec = $"0:{mainAudio.GlobalIndex}"; // default: direct map
+        string stereoMapSpec = $"0:{mainAudio.GlobalIndex}"; // default: direct map
+        var losslessMapSpecs = losslessFmts.Select(_ => $"0:{mainAudio.GlobalIndex}").ToList();
+
+        if (needsSurround)
+        {
+            // Decode-once fan-out: surround + stereo + any lossless re-encodes.
+            int splitCount = 2 + losslessFmts.Count;
+
+            var fc = new StringBuilder();
+            fc.Append($"[0:{mainAudio.GlobalIndex}]asplit={splitCount}[a71][aster_in]");
+            for (int i = 0; i < losslessFmts.Count; i++)
+                fc.Append($"[ll{i}]");
+
+            // Stereo downmix lives in the filter graph (cannot mix -filter:a with
+            // filter_complex-labelled streams on the same ffmpeg invocation).
+            if (panFilter is not null)
+                fc.Append($";[aster_in]{panFilter}[aster]");
+            else
+                fc.Append(";[aster_in]aformat=channel_layouts=stereo[aster]");
+
+            filterComplex = fc.ToString();
+            surroundMapSpec = "[a71]";
+            stereoMapSpec = "[aster]";
+            losslessMapSpecs = Enumerable.Range(0, losslessFmts.Count)
+                                         .Select(i => $"[ll{i}]")
+                                         .ToList();
+        }
+
         // ── 5. Log selections ────────────────────────────────────────────────
         Console.WriteLine();
         Console.WriteLine("  Stream selection:");
@@ -171,21 +213,28 @@ public static class CommandBuilder
         // Input file
         sb.Append($" -i \"{inputPath}\"");
 
+        // filter_complex for decode-once asplit (only emitted when needsSurround).
+        if (filterComplex is not null)
+            sb.Append($" -filter_complex \"{filterComplex}\"");
+
         // Video maps: use explicit global indices rather than "-map 0:v", which would also
         // pick up embedded cover art / thumbnail streams that the caller did not select.
         foreach (var v in videoStreams)
             sb.Append($" -map 0:{v.GlobalIndex}");
 
-        // Audio maps: track 0 (copy) is always present; surround and stereo are conditional.
+        // Audio maps: track 0 (copy) always maps directly from the input — it is
+        // never decoded so it does not participate in the asplit graph.
+        // Surround and stereo tracks use filter labels when needsSurround is true,
+        // falling back to direct maps otherwise.
         sb.Append($" -map 0:{mainAudio.GlobalIndex}");   // track 0: copy (always)
         if (needsSurround)
-            sb.Append($" -map 0:{mainAudio.GlobalIndex}");   // track 1: AAC surround
+            sb.Append($" -map {surroundMapSpec}");   // track 1: AAC surround
         if (!isStereoOnly)
-            sb.Append($" -map 0:{mainAudio.GlobalIndex}");   // track stereoOutIdx: AAC stereo
+            sb.Append($" -map {stereoMapSpec}");     // track stereoOutIdx: AAC stereo
 
-        // Lossless tracks
-        foreach (var _ in losslessFmts)
-            sb.Append($" -map 0:{mainAudio.GlobalIndex}");
+        // Lossless tracks — use filter labels when inside the asplit graph.
+        for (int i = 0; i < losslessFmts.Count; i++)
+            sb.Append($" -map {losslessMapSpecs[i]}");
 
         // Secondary audio
         foreach (var a in secondary)
@@ -209,11 +258,17 @@ public static class CommandBuilder
             sb.Append($" -c:a:1 aac -b:a:1 {mainAudio.AacSurroundBitrate}k");
 
         // Stereo downmix track for 5.1+ sources — conditional on source properties.
-        // If a Dolby pan filter is available for the source, it is used here; otherwise,
-        // a default downmix is applied.
+        //
+        // needsSurround:  pan filter / aformat already applied inside -filter_complex;
+        //                 only codec + bitrate are needed here.
+        // !needsSurround + panFilter: single encoded track (AAC-surround source),
+        //                 no asplit graph — use the per-stream simple filter chain.
+        // !needsSurround + no panFilter: default downmix via codec channel selection.
         if (!isStereoOnly)
         {
-            if (panFilter is not null)
+            if (needsSurround)
+                sb.Append($" -c:a:{stereoOutIdx} aac -b:a:{stereoOutIdx} 256k");
+            else if (panFilter is not null)
                 sb.Append($" -c:a:{stereoOutIdx} aac -b:a:{stereoOutIdx} 256k -filter:a:{stereoOutIdx} \"{panFilter}\"");
             else
                 sb.Append($" -c:a:{stereoOutIdx} aac -ac:a:{stereoOutIdx} 2 -b:a:{stereoOutIdx} 256k");
