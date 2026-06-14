@@ -357,6 +357,11 @@ public static class CommandBuilder
         for (int i = 0; i < chosenSubs.Count; i++)
             Metadata(sb, "s", i, chosenSubs[i].DisplayName, chosenSubs[i].Language);
 
+        // ── 9. Other output options ───────────────────────────────────────────
+        sb.Append(" -max_muxing_queue_size 9999 ");
+        sb.Append(" -f matroska ");
+        //sb.Append(" -y ");
+
         // Output file path
         sb.Append($" \"{outputPath}\"");
 
