@@ -73,11 +73,11 @@ public record VideoStreamDisposition(
     /// Builds the value string for an ffmpeg -disposition:x:N argument,
     /// e.g. "default", "attached_pic", "default+forced", or "0" (clear all).
     /// </summary>
-    public string ToFfmpegValue()
+    public string ToFfmpegValue(bool withoutDefault = false)
     {
         var flags = new List<string>(8);
 
-        if (IsDefault) flags.Add("default");
+        if (IsDefault && !withoutDefault) flags.Add("default");
         if (IsForced) flags.Add("forced");
         if (IsComment) flags.Add("comment");
         if (IsMetadata) flags.Add("metadata");
