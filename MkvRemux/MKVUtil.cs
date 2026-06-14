@@ -513,16 +513,19 @@ public partial class MKVUtil
         var doc = JsonNode.Parse(json)
             ?? throw new InvalidOperationException("ffprobe returned invalid JSON.");
 
-        // Get the tags object from the JSON and check if it contains the specified tag name and value. 
-        var tags = doc["tags"]?.AsArray() ?? null;
+        // Tags live under format.tags, not at the root. The node is a JSON object (key/value
+        // pairs), not an array — AsObject() is correct here, not AsArray().
+        var tags = doc["format"]?["tags"]?.AsObject();
         if (tags == null) return false;
 
         // Get the value of the specified tag name (or the default processed tag name if not provided)
         var tagsValue = tags[tagName ?? MKVUtil.ProcessedTagName]?.GetValue<string>() ?? null;
         if (tagsValue == null) return false;
 
-        // We made it here, so the tag exists — check if the value matches the expected processed tag value (case-insensitive)
-        return tagsValue.Equals(tagsValue ?? MKVUtil.ProcessedTagValue, StringComparison.OrdinalIgnoreCase);
+        // We made it here, so the tag exists — check if the value matches the expected processed
+        // tag value (the parameter tagValue, falling back to the default). The original code
+        // compared tagsValue to itself, which always returned true regardless of content.
+        return tagsValue.Equals(tagValue ?? MKVUtil.ProcessedTagValue, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
