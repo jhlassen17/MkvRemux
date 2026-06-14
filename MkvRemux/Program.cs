@@ -20,6 +20,7 @@ namespace MkvRemux;
 //    --stereo-filter <mode>            Stereo downmix: default | dolby  (default: default)
 //    --info                            Print stream info and exit (no processing)
 //    --skip-existing                   Skip if output file already exists
+//    --up-to-hevc                      Skip encode if video is already HEVC; otherwise encode to HEVC
 //    --recursive                       (Batch) scan subfolders too
 //    --allow-sw-fallback               (Batch) allow software fallback if no GPU encoder found
 //    --allow-dv                        (Batch) allow Dolby Vision if available
@@ -74,6 +75,7 @@ public class Program
         bool dryRun = false;
         bool infoMode = false;
         bool skipExisting = false;
+        bool upToHevc = false;
         bool allowSwFb = false;
         bool recursive = false;
         int cq = 19;
@@ -95,6 +97,7 @@ public class Program
                 case "--dry-run": dryRun = true; break;
                 case "--info": infoMode = true; break;
                 case "--skip-existing": skipExisting = true; break;
+                case "--up-to-hevc": upToHevc = true; break;
                 case "--allow-sw-fallback": allowSwFb = true; break;
                 case "--recursive": recursive = true; break;
                 case "--allow-dv": allowDolbyVision = true; break;
@@ -285,7 +288,7 @@ public class Program
 
         // Only detect encoder if we need to encode video and we're not in info mode.
         // If --encoder is used, we'll skip detection and use the forced encoder.
-        if (encodeVideo && !infoMode)
+        if ((encodeVideo || upToHevc) && !infoMode)
         {
             // Check for forced encoder first. This allows the user to bypass detection if they know which encoder they want to use
             if (forcedEncoder is not null)
@@ -328,6 +331,7 @@ public class Program
             Console.WriteLine($"Lossless: {string.Join(", ", losslessFmts).ToUpper()}");
         // Report skip existing flag and check dry run status
         if (skipExisting) Console.WriteLine("Mode   : --skip-existing enabled");
+        if (upToHevc) Console.WriteLine("Mode   : --up-to-hevc enabled (encode only if not already HEVC)");
         if (dryRun) Console.WriteLine("Mode   : DRY RUN — ffmpeg will not execute");
 
         // Clean up
@@ -438,9 +442,34 @@ public class Program
             // Build video args
             string? videoArgs = null;
 
+            // --up-to-hevc: check whether the primary video stream is already HEVC.
+            // If it is, we remux without re-encoding (treat as encodeVideo=false for this file).
+            // If it isn't, we encode to HEVC exactly as --encode-video would.
+            bool effectiveEncodeVideo = encodeVideo;
+            if (upToHevc && !encodeVideo)
+            {
+                // Use the first non-image stream (skip attached pics / cover art)
+                var primaryVideo = videoStreams.FirstOrDefault(v => !v.Disposition.IsImageStream);
+                bool alreadyHevc = primaryVideo is not null &&
+                                   primaryVideo.Codec.Equals("hevc", StringComparison.OrdinalIgnoreCase);
+                if (alreadyHevc)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkYellow;
+                    Console.WriteLine("  SKIP encode — video stream is already HEVC; remuxing only.");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"  ENCODE — video is {(primaryVideo is not null ? primaryVideo.Codec.ToUpper() : "unknown")}, encoding to HEVC.");
+                    Console.ResetColor();
+                    effectiveEncodeVideo = true;
+                }
+            }
+
             // If encoding is requested and we have a video stream, build the video encoding arguments based on
             // the selected encoder and quality settings.
-            if (encodeVideo && resolvedEncoder is not null)
+            if (effectiveEncodeVideo && resolvedEncoder is not null)
             {
                 if (videoStreams.Count == 0)
                 {
@@ -667,6 +696,7 @@ public class Program
         Console.WriteLine("  --stereo-filter <mode>             Stereo downmix: default | dolby. Default: default");
         Console.WriteLine("  --info                             Print stream info only, no processing");
         Console.WriteLine("  --skip-existing                    Skip files whose output already exists");
+        Console.WriteLine("  --up-to-hevc                       Skip encode if video is already HEVC; otherwise encode to HEVC");
         Console.WriteLine("  --recursive                        (Batch) scan subfolders");
         Console.WriteLine("  --allow-dv                         Allow Dolby Vision metadata (no video encoding)");
         Console.WriteLine("  --yes-i-know-what-im-doing, -y     Bypass warnings about incompatible options");
