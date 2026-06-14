@@ -19,6 +19,14 @@
     "MkvRemux - File": {
       "commandName": "Project",
       "commandLineArgs": "\"J:\\jeff\\files\\Temp\\Travel\\Remux\\Independence Day - Extended Edition (1996) {tmdb-602}\\Independence Day (1996) {tmdb-602} - {edition-Extended Edition} [2160p] [UHD Blu-ray] [HDR10] [DTS-X7.1][h265].mkv\" \"J:\\jeff\r\n\\files\\Temp\\Travel\\Remux\\Independence Day - Extended Edition (1996) {tmdb-602}\\JeffTest01.mkv\" --encode-video --encoder nvenc --allow-sw-fallback --cq 19 --nvenc-preset p4 --stereo-filter dolby --skip-existing --recursive --output-dir \"J:\\jeff\\files\\Temp\\Travel\\Temp"
+    },
+    "MkvRemux - HEVC Up Folder": {
+      "commandName": "Project",
+      "commandLineArgs": "\"J:\\jeff\\files\\Temp\\Travel\\Remux\" --up-to-hevc --stereo-filter dolby --skip-existing --recursive --output-dir \"J:\\jeff\\files\\Temp\\Travel\\Temp\""
+    },
+    "Profile 1": {
+      "commandName": "Project",
+      "commandLineArgs": "\"J:\\jeff\\files\\3D\\Movies\\Resident Evil - Apocalypse - 3D (2004) {tmdb-1577} [3D HSBS]\\Resident Evil - Apocalypse (2004) {tmdb-1577} - {edition-3D} [2160p] [Blu-ray] [3D HSBS] [TrueHD Atmos7.1][h264].mkv\" --encoder nvenc --allow-sw-fallback --cq 19 --nvenc-preset p4 --stereo-filter dolby --skip-existing  --recursive --up-to-hevc"
     }
   }
 }
