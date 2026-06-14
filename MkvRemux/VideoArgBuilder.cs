@@ -42,11 +42,15 @@ static class VideoArgBuilder
         if (videos.Count == 0)
             return string.Empty;
 
+        // Filter out attached pics / image streams — they are stream-copied by CommandBuilder
+        // and must not receive HEVC encode args (doing so would corrupt/drop the cover art tags).
+        var encodable = videos.Where(v => !v.Disposition.IsImageStream).ToList();
+
         var sb = new StringBuilder();
-        for (int i = 0; i < videos.Count; i++)
+        for (int i = 0; i < encodable.Count; i++)
         {
             if (i > 0) sb.Append(' ');
-            sb.Append(BuildForStream(videos[i], i, encoder, cq, nvencPreset));
+            sb.Append(BuildForStream(encodable[i], i, encoder, cq, nvencPreset));
         }
         return sb.ToString();
     }
@@ -86,7 +90,7 @@ static class VideoArgBuilder
 
         Console.WriteLine();
 
-        foreach (var videoStream in videos)
+        foreach (var videoStream in videos.Where(v => !v.Disposition.IsImageStream))
         {
             // Print the source video properties
             Console.WriteLine($"    Source     : [{videoStream.GlobalIndex}] {videoStream.Codec.ToUpper()} {videoStream.Resolution} {videoStream.PixFmt}");
