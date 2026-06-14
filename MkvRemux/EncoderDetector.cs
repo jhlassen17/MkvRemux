@@ -68,7 +68,7 @@ static class EncoderDetector
         // We use a very short input (1 frame, 0.04s duration) to minimize test time.
         // The color filter generates a simple black frame of the required size and format.
         string args =
-            "-f lavfi -i \"color=c=black:s=128x128:r=1:d=0.04\" " +
+            "-f lavfi -i \"color=c=black:s=320x240:r=1:d=0.04\" " +
             $"-frames:v 1 -c:v {encoder} -profile:v main10 -pix_fmt {pixFmt} " +
             $"{extraArgs} -f null -";
 
