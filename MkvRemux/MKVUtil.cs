@@ -97,7 +97,7 @@ public partial class MKVUtil
                 if (e.Data is not null)
                 {
                     outputBuilder.AppendLine(e.Data);
-                    Console.Write($"\r {e.Data,winWidth}");
+                    Console.WriteLine($"\r {e.Data/*,winWidth*/}");
                 }
             };
 
@@ -108,8 +108,6 @@ public partial class MKVUtil
                 // Make sure that we got something
                 if (e.Data is not null)
                 {
-                    errorBuilder.AppendLine(e.Data);
-
                     // If this is ffmpeg output, it may contain progress information that we can parse and display in a
                     // user-friendly way. If it's not ffmpeg, we'll just print the error output as-is.
                     if (isffMpeg)
@@ -133,14 +131,16 @@ public partial class MKVUtil
                         }
                         else
                         {
-                            // Not formatted
-                            Console.Write($"\r {e.Data,winWidth}");
+                            // Not formatted, suppress?
+                            Debug.WriteLine($"{e.Data}");
+                            errorBuilder.AppendLine(e.Data);
                         }
                     }
                     else
                     {
                         // Not formatted
-                        Console.Write($"\r {e.Data,winWidth}");
+                        Console.WriteLine($"\r {e.Data,winWidth}");
+                        errorBuilder.AppendLine(e.Data);
                     }
                 }
             };
