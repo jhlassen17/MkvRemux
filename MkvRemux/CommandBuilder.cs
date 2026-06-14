@@ -210,11 +210,6 @@ public static class CommandBuilder
             sb.Append($" -probesize 100M");
             sb.Append($" -analyzeduration 200M");
         }
-
-        // Ensure ffmpeg generates PTS for all streams, even if the source is well-behaved and
-        // doesn't strictly need it
-        sb.Append(" -fflags +genpts ");
-
         // Input file
         sb.Append($" -i \"{inputPath}\"");
 
@@ -418,10 +413,9 @@ public static class CommandBuilder
             Metadata(sb, "s", i, chosenSubs[i].DisplayName, chosenSubs[i].Language);
 
         // ── 9. Other output options ───────────────────────────────────────────
-        sb.Append(" -max_interleave_delta 0 ");
         sb.Append(" -max_muxing_queue_size 9999 ");
         sb.Append(" -f matroska ");
-        sb.Append(" -y ");
+        //sb.Append(" -y ");
 
         // Output file path
         sb.Append($" \"{outputPath}\"");
