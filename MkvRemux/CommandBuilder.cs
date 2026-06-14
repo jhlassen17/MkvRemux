@@ -34,7 +34,7 @@ public static class CommandBuilder
     /// Preferred languages for main audio and subtitle selection. Case-insensitive.
     /// </summary>
     public static readonly HashSet<string> PreferredLangs =
-        new(StringComparer.OrdinalIgnoreCase) { "eng", "und" };
+        new(StringComparer.OrdinalIgnoreCase) { "eng", "und", "en" };
 
     /// <summary>
     /// Builds the ffmpeg argument string based on the input file's streams and the specified options.
