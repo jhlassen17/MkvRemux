@@ -227,8 +227,9 @@ public partial class MKVUtil
     /// </summary>
     /// <param name="filename">The filename to check for existence.</param>
     /// <returns>True if an output file with the same title and episode exists; otherwise, false.</returns>
-    public static bool OutputExists(string? filename = null)
+    public static bool OutputExists(string? filename, out string? matchedPath)
     {
+        matchedPath = null;
 
         // If we don't have an output path, we can't check for existence
         if (string.IsNullOrEmpty(filename))
@@ -245,22 +246,23 @@ public partial class MKVUtil
         // must also match — a missing episode tag on either side is treated as a wildcard so
         // that a bare title-only query still hits a titled episode file and vice-versa.
         string outputDir = Path.GetDirectoryName(filename) ?? string.Empty;
-        alreadyExists = Directory
+        matchedPath = Directory
                 .EnumerateFiles(outputDir, "*.mkv")
                 // Normalize existing files in the output directory and compare against our target title/episode
-                .Select(f => MKVUtil.NormalizeTitle(f))
-                .Any(existing =>
+                .Select(f => (Path: f, Norm: MKVUtil.NormalizeTitle(f)))
+                .FirstOrDefault(t =>
                 {
-                    if (!string.Equals(existing.Title, fTitle.Title, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(t.Norm.Title, fTitle.Title, StringComparison.OrdinalIgnoreCase))
                         return false;
 
                     // Only compare episodes when both sides have one — avoids false negatives
                     // when the output filename has no episode tag yet.
-                    if (!string.IsNullOrEmpty(existing.Episode) && !string.IsNullOrEmpty(fTitle.Episode))
-                        return string.Equals(existing.Episode, fTitle.Episode, StringComparison.OrdinalIgnoreCase);
+                    if (!string.IsNullOrEmpty(t.Norm.Episode) && !string.IsNullOrEmpty(fTitle.Episode))
+                        return string.Equals(t.Norm.Episode, fTitle.Episode, StringComparison.OrdinalIgnoreCase);
 
                     return true;
-                });
+                }).Path;
+        alreadyExists = matchedPath is not null;
 
         // Return the result of the existence check
         return alreadyExists;
@@ -493,8 +495,12 @@ public partial class MKVUtil
     /// langword="false"/>.</returns>
     public static bool HasProcessedTag(string? filePath = null, string? tagName = null, string? tagValue = null)
     {
+        // Guard: if the file doesn't exist there's nothing to probe — not yet processed
+        if (filePath is null || !File.Exists(filePath))
+            return false;
+
         // Use ffprobe to get the value of the processed tag in JSON format
-        string args = $"-v quiet -print_format json -show_format \"{filePath ?? "."}\"";
+        string args = $"-v quiet -print_format json -show_format \"{filePath}\"";
         // Run ffprobe and capture the output
         var (json, _) = MKVUtil.RunffProbe(args);
 

@@ -360,12 +360,14 @@ public class Program
             }
 
             // Check if output file already exists.
-            bool outputExists = MKVUtil.OutputExists(outputPath);
-            // If --skip - existing is enabled and the file exists
+            // matchedPath is the actual file on disk that matched (may differ from outputPath
+            // if a previous run left a partial file with a slightly different name).
+            bool outputExists = MKVUtil.OutputExists(outputPath, out string? matchedOutputPath);
+            // If --skip-existing is enabled and the file exists
             if (skipExisting && outputExists)
             {
                 // If the output file has the processed tag, we'll skip processing this file.
-                if (MKVUtil.HasProcessedTag(outputPath))
+                if (MKVUtil.HasProcessedTag(matchedOutputPath))
                 {
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
                     Console.WriteLine($"  SKIP — output exists: {MKVUtil.NormalizeTitle(outputPath)}");
@@ -383,8 +385,8 @@ public class Program
                     Console.WriteLine($"            Deleting existing file to re-process.");
                     Console.ResetColor();
                     Console.WriteLine();
-                    // TODO: Maybe we shouldn't delete if we are skipping existing files?
-                    File.Delete(outputPath);
+                    // Delete the matched file (which may differ from outputPath)
+                    if (matchedOutputPath is not null) File.Delete(matchedOutputPath);
                     outputExists = false;
                 }
             }
@@ -392,7 +394,7 @@ public class Program
             {
                 // File exists but we're not skipping, so delete it to avoid ffmpeg errors.
                 // This can happen in batch mode if a previous run failed after creating the output file.
-                File.Delete(outputPath);
+                if (matchedOutputPath is not null) File.Delete(matchedOutputPath);
                 outputExists = false;
             }
 
