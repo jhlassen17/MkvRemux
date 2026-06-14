@@ -238,8 +238,9 @@ public static class CommandBuilder
             // (skipping attached pics) to set as default, since attached pics should not be
             // marked as default.
             int vidIdx = 0;
-            var firstVid = videoStreams.Where(v => v.Disposition.AttachedPic == 0)
-                            .OrderBy(v => v.GlobalIndex).ToList();
+            var firstVid = videoStreams.Where(v => !v.Disposition.IsAttachedPic)
+                            .OrderBy(v => v.GlobalIndex)
+                            .ToList();
 
             // Make sure that we have at least one non-attached-pic video stream before trying to
             // set the default index, otherwise we might end up with an out-of-range index if all
@@ -254,12 +255,11 @@ public static class CommandBuilder
             {
                 // Get the current video stream. 
                 var curVideo = videoStreams[i];
-                
 
-                // Attached pics are marked with the attached_pic disposition regardless of their position
-                if (curVideo.Disposition.AttachedPic == 1)
+                // Attached pics (and image streams) are marked with the attached_pic disposition regardless of their position
+                if (curVideo.Disposition.IsImageStream)
                 {
-                    sb.Append($" -disposition:v:{i} attached_pic");
+                    sb.Append($" -disposition:v:{i} {curVideo.Disposition.ToFfmpegValue(false)}");
                 }
                 else if (i == vidIdx)
                 {
