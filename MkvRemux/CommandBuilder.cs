@@ -94,12 +94,16 @@ public static class CommandBuilder
         var selectedSub = SelectSubtitleStream(chosenSubs);                                // Try to select SDH-preferred subtitle, but fall back gracefully if not found
 
         // ── 3. Audio track layout ─────────────────────────────────────────────
-        // Stereo source (≤ 2ch)  → 1 main track:  copy only
+        // AAC stereo source      → 1 main track:  copy only          (already optimal)
+        // Non-AAC stereo source  → 2 main tracks: copy + AAC stereo  (e.g. AC3 stereo → add AAC stereo)
         // 5.1+ AAC source        → 2 main tracks: copy + AAC stereo downmix
         // 5.1+ non-AAC source    → 3 main tracks: copy + AAC surround + AAC stereo downmix
-        bool isStereoOnly = mainAudio.Channels <= 2;
-        bool isAacSurround = !isStereoOnly && mainAudio.Codec.Equals("aac", StringComparison.OrdinalIgnoreCase);
-        bool needsSurround = !isStereoOnly && !isAacSurround;   // true only for 5.1+ non-AAC
+        bool isAac          = mainAudio.Codec.Equals("aac", StringComparison.OrdinalIgnoreCase);
+        bool isStereoOnly   = mainAudio.Channels <= 2 && isAac;     // AAC stereo → copy only, nothing to add
+        bool isNonAacStereo = mainAudio.Channels <= 2 && !isAac;    // e.g. AC3 stereo → needs AAC stereo added
+        bool isAacSurround  = mainAudio.Channels > 2 && isAac;      // 5.1+ AAC → copy + AAC stereo downmix
+        bool needsSurround  = mainAudio.Channels > 2 && !isAac;     // 5.1+ non-AAC → copy + AAC surround + AAC stereo downmix
+        bool needsAacStereo = isNonAacStereo || isAacSurround || needsSurround; // any case that adds an AAC stereo track
 
         // The stereo downmix track sits at index 1 when there's no separate surround track, 2 otherwise.
         int stereoOutIdx = needsSurround ? 2 : 1;
@@ -173,7 +177,7 @@ public static class CommandBuilder
         Console.WriteLine($"      → Track 0: copy  [DEFAULT]");
         if (needsSurround)
             Console.WriteLine($"      → Track 1: AAC {mainAudio.ChannelDesc} @ {mainAudio.AacSurroundBitrate}k");
-        if (!isStereoOnly)
+        if (needsAacStereo)
             Console.WriteLine($"      → Track {stereoOutIdx}: {stereoDesc} @ 256k");
 
         // Lossless tracks
@@ -229,7 +233,7 @@ public static class CommandBuilder
         sb.Append($" -map 0:{mainAudio.GlobalIndex}");   // track 0: copy (always)
         if (needsSurround)
             sb.Append($" -map {surroundMapSpec}");   // track 1: AAC surround
-        if (!isStereoOnly)
+        if (needsAacStereo)
             sb.Append($" -map {stereoMapSpec}");     // track stereoOutIdx: AAC stereo
 
         // Lossless tracks — use filter labels when inside the asplit graph.
@@ -264,7 +268,7 @@ public static class CommandBuilder
         // !needsSurround + panFilter: single encoded track (AAC-surround source),
         //                 no asplit graph — use the per-stream simple filter chain.
         // !needsSurround + no panFilter: default downmix via codec channel selection.
-        if (!isStereoOnly)
+        if (needsAacStereo)
         {
             if (needsSurround)
                 sb.Append($" -c:a:{stereoOutIdx} aac -b:a:{stereoOutIdx} 256k");
@@ -393,7 +397,7 @@ public static class CommandBuilder
         // description here since it can be misleading (e.g. "5.1" source downmixed to stereo).
         if (needsSurround)
             Metadata(sb, "a", 1, $"AAC {mainAudio.ChannelDesc}", mainAudio.Language);
-        if (!isStereoOnly)
+        if (needsAacStereo)
             Metadata(sb, "a", stereoOutIdx, "AAC Stereo", mainAudio.Language);
 
         // Lossless tracks metadata
@@ -419,6 +423,13 @@ public static class CommandBuilder
 
         // Output file path
         sb.Append($" \"{outputPath}\"");
+        
+        //// Try to filter output progress to only show frame updates, which gives a better sense of how the remux is
+        //// progressing without overwhelming the user with too much information.
+        //// Note that this is a bit hacky and relies on ffmpeg's progress output format,
+        //// but it works reasonably well in practice.
+        //if(videoStreams.Count > 1)
+        //    sb.Append(" -progress file://stdout | Select-String \"frame=\" ");
 
         // Return the complete argument string.
         return sb.ToString();
