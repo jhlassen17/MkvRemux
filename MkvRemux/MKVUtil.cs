@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -46,7 +47,7 @@ public partial class MKVUtil
     /// Gets the AUTHOR tag name used to mark files with the author information.
     /// </summary>
     public static string ProcessedAuthorTagName => "AUTHOR";
-    
+
     /// <summary>
     /// Gets the AUTHOR tag value used to mark files with the author information.
     /// </summary>
@@ -390,7 +391,7 @@ public partial class MKVUtil
                             <Targets />
                             <Simple>
                               <Name>%ProcessedTagName%</Name>
-                              <String>ProcessedTagValue%</String>
+                              <String>%ProcessedTagValue%</String>
                             </Simple>
                           </Tag>
                         </Tags>";
@@ -414,31 +415,22 @@ public partial class MKVUtil
     /// path.</param>
     public static void SetMkvCopyrightTag(string? outputFilePath)
     {
-        try
-        {
-            // Create the lag flag file
-            string tagFile = CreateTagXml();
-            // Set up args
-            string args = $"\"{outputFilePath}\" --tags global:\"{tagFile}\"";
-            // Run the tool
-            var result = MKVUtil.RunProcess(mkvpropeditPath, args);
-            // Debug
-            if (Debugger.IsAttached) Debug.WriteLine(result.Item1);
-            // Should we also apply the tag to the source file?
-            //args = $"\"{video.FilePath}\" --tags global:\"{tagFile}\"";
-            //result = MKVUtil.RunProcess(HBEState.MKVPropEditPath, args, Debugger.IsAttached);
-            //if (Debugger.IsAttached) Debug.WriteLine(result);
-            // Delete the old tag file
-            File.Delete(tagFile);
-        }
-        catch (Exception ex)
-        {
-            // It gave me error
-            Debug.WriteLine($"\n⚠️  {ex.Data}");
-            //throw;
-        }
+        SetMkvTag(outputFilePath);
     }
 
+
+    public static void SetMkvTag(string? outputFilePath, string? tagName = null, string? tagValue = null)
+    {
+        string tagFile = CreateTagXml(tagName, tagValue);
+        // Set up args
+        string args = $"\"{outputFilePath}\" --tags global:\"{tagFile}\"";
+        // Run the tool
+        var result = MKVUtil.RunProcess(mkvpropeditPath, args);
+        // Debug
+        if (Debugger.IsAttached) Debug.WriteLine(result.Item1);
+        // Delete the old tag file
+        File.Delete(tagFile);
+    }
     /// <summary>
     /// Sets the AUTHOR tag in the specified MKV video file to "HANF" using an external tool. 
     /// This can be used to mark files as processed by this tool or for other identification 
@@ -450,25 +442,8 @@ public partial class MKVUtil
     /// be null and should have a valid output file path.</param>
     public static void SetMkvAuthorTag(string? outputFilePath)
     {
-        try
-        {
-            // Create the lag flag file
-            string tagFile = CreateTagXml(ProcessedAuthorTagName, ProcessedAuthorTagValue);
-            // Set up args
-            string args = $"\"{outputFilePath}\" --tags global:\"{tagFile}\"";
-            // Run the tool
-            var result = MKVUtil.RunProcess(mkvpropeditPath, args);
-            // Debug
-            if (Debugger.IsAttached) Debug.WriteLine(result.Item1);
-            // Delete the old tag file
-            File.Delete(tagFile);
-        }
-        catch (Exception ex)
-        {
-            // It gave me error
-            Debug.WriteLine($"\n⚠️  {ex.Data}");
-            //throw;
-        }
+        SetMkvTag(outputFilePath, ProcessedAuthorTagName, ProcessedAuthorTagValue);
+        
     }
 
     /// <summary>
