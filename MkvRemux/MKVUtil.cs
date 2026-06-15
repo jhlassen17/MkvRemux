@@ -413,24 +413,65 @@ public partial class MKVUtil
     /// If a debugger is attached, process output and errors are written to the debug output window.</remarks>
     /// <param name="outputFilePath">The video file for which to set the copyright tag. Must not be null and should have a valid output file
     /// path.</param>
-    public static void SetMkvCopyrightTag(string? outputFilePath)
-    {
-        SetMkvTag(outputFilePath);
-    }
+    //public static void SetMkvCopyrightTag(string? outputFilePath)
+    //{
+    //    SetMkvTag(outputFilePath);
+    //}
 
-
-    public static void SetMkvTag(string? outputFilePath, string? tagName = null, string? tagValue = null)
+    /// <summary>
+    /// Sets the processing tags in the specified MKV video file using an external tool.
+    /// </summary>
+    /// <remarks>This method uses the MKVPropEdit tool to apply processing metadata to the MKV file.
+    /// The method creates a temporary tag XML file, applies it to the video, and then deletes the temporary file.
+    /// If a debugger is attached, process output and errors are written to the debug output window.</remarks>
+    /// <param name="outputFilePath">The video file for which to set the processing tags. Must not be null and should have a valid output file
+    /// path.</param>
+    public static void SetMkvProcessingTags(string? outputFilePath)
     {
-        string tagFile = CreateTagXml(tagName, tagValue);
-        // Set up args
-        string args = $"\"{outputFilePath}\" --tags global:\"{tagFile}\"";
-        // Run the tool
-        var result = MKVUtil.RunProcess(mkvpropeditPath, args);
-        // Debug
+        // Set up a temp XML file for the tags — mkvpropedit requires an XML file for batch
+        string tempName = Path.GetRandomFileName();
+        string path = Path.Combine(Path.GetTempPath(), Path.ChangeExtension(tempName, "xml"));
+
+        // Create the tag XML with both the processed tag and the author tag
+        string xml = $@"<?xml version=""1.0""?>
+<Tags>
+  <Tag>
+    <Targets />
+    <Simple>
+      <Name>{ProcessedTagName}</Name>
+      <String>{ProcessedTagValue}</String>
+    </Simple>
+    <Simple>
+      <Name>{ProcessedAuthorTagName}</Name>
+      <String>{ProcessedAuthorTagValue}</String>
+    </Simple>
+  </Tag>
+</Tags>";
+
+        // Save the XML to the temp file
+        File.WriteAllText(path, xml);
+
+        // Set up args to apply the tags to the MKV file using mkvpropedit
+        string args = $"\"{outputFilePath}\" --tags global:\"{path}\"";
+        var result = RunProcess(mkvpropeditPath, args);
+        // Debug output for the process result
         if (Debugger.IsAttached) Debug.WriteLine(result.Item1);
-        // Delete the old tag file
-        File.Delete(tagFile);
+        // Delete the temporary tag XML file after applying the tags
+        File.Delete(path);
     }
+
+    //public static void SetMkvTag(string? outputFilePath, string? tagName = null, string? tagValue = null)
+    //{
+    //    string tagFile = CreateTagXml(tagName, tagValue);
+    //    // Set up args
+    //    string args = $"\"{outputFilePath}\" --tags global:\"{tagFile}\"";
+    //    // Run the tool
+    //    var result = MKVUtil.RunProcess(mkvpropeditPath, args);
+    //    // Debug
+    //    if (Debugger.IsAttached) Debug.WriteLine(result.Item1);
+    //    // Delete the old tag file
+    //    File.Delete(tagFile);
+    //}
     /// <summary>
     /// Sets the AUTHOR tag in the specified MKV video file to "HANF" using an external tool. 
     /// This can be used to mark files as processed by this tool or for other identification 
@@ -440,11 +481,11 @@ public partial class MKVUtil
     /// </summary>
     /// <param name="outputFilePath">The video file for which to set the AUTHOR tag. Must not 
     /// be null and should have a valid output file path.</param>
-    public static void SetMkvAuthorTag(string? outputFilePath)
-    {
-        SetMkvTag(outputFilePath, ProcessedAuthorTagName, ProcessedAuthorTagValue);
+    //public static void SetMkvAuthorTag(string? outputFilePath)
+    //{
+    //    SetMkvTag(outputFilePath, ProcessedAuthorTagName, ProcessedAuthorTagValue);
         
-    }
+    //}
 
     /// <summary>
     /// Checks whether the media file has an AUTHOR tag with the value "HANF", 
@@ -460,7 +501,7 @@ public partial class MKVUtil
     public static bool HasAuthorTag(string? filePath = null)
     {
         // Call the other method
-        return HasProcessedTag(filePath, ProcessedAuthorTagName, ProcessedAuthorTagValue);
+        return HasMkvTag(filePath, ProcessedAuthorTagName, ProcessedAuthorTagValue);
     }
 
     /// <summary>
@@ -468,7 +509,7 @@ public partial class MKVUtil
     /// </summary>
     /// <returns><see langword="true"/> if the processed tag exists with the expected value; otherwise, <see
     /// langword="false"/>.</returns>
-    public static bool HasProcessedTag(string? filePath = null, string? tagName = null, string? tagValue = null)
+    public static bool HasMkvTag(string? filePath = null, string? tagName = null, string? tagValue = null)
     {
         // Guard: if the file doesn't exist there's nothing to probe — not yet processed
         if (filePath is null || !File.Exists(filePath))
@@ -569,7 +610,7 @@ public partial class MKVUtil
         @"size=\s*(?<size>[\d.]+\s*(?:[KMGT]i?B|B))\s+" +
         @"time=(?<time>\d{2}:\d{2}:\d{2}\.\d+|N/A)\s+" +
         @"bitrate=\s*(?<bitrate>[\d.]+\s*kbits/s|N/A)\s+" +
-        @"speed=\s*(?<speed>[\d.]+x|N/A)"
+        @"speed=\s*(?:(?<speed>[\d.]+)x|N/A)\s+"
     )]
     private static partial Regex FfmpegProgressRegex();
 }

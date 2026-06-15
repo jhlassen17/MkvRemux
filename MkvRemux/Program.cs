@@ -367,7 +367,7 @@ public class Program
             if (skipExisting && outputExists)
             {
                 // If the output file has the processed tag, we'll skip processing this file.
-                if (MKVUtil.HasProcessedTag(matchedOutputPath))
+                if (MKVUtil.HasMkvTag(matchedOutputPath))
                 {
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
                     Console.WriteLine($"  SKIP — output exists: {MKVUtil.NormalizeTitle(outputPath)}");
@@ -456,6 +456,7 @@ public class Program
                                    primaryVideo.Codec.Equals("hevc", StringComparison.OrdinalIgnoreCase);
                 if (alreadyHevc)
                 {
+                    // Assume image stream has already been handled?
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
                     Console.WriteLine("  SKIP encode — video stream is already HEVC; remuxing only.");
                     Console.ResetColor();
@@ -532,7 +533,8 @@ public class Program
             // Run ffmpeg 
             Console.WriteLine();
             Console.WriteLine();
-            var (runOutput, exitCode) = MKVUtil.RunffMpeg(ffmpegArgs, TimeSpan.FromSeconds(videoStreams.Sum(a => a.StreamDuration.TotalSeconds)), cts.Token);
+            var tmpJeff = videoStreams.Sum(a => a.StreamDuration.TotalSeconds);
+            var (runOutput, exitCode) = MKVUtil.RunffMpeg(ffmpegArgs, TimeSpan.FromSeconds(tmpJeff), cts.Token);
             Console.WriteLine();
 
             // Check the exit code from ffmpeg to determine if the process succeeded or failed, and report the result.
@@ -541,8 +543,7 @@ public class Program
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"  Done → {outputPath}");
                 Console.ResetColor();
-                MKVUtil.SetMkvCopyrightTag(outputPath);     // Tag the output file with a copyright notice to identify it as processed by MkvRemux.
-                MKVUtil.SetMkvAuthorTag(outputPath);        // Tag the output file with the author information.
+                MKVUtil.SetMkvProcessingTags(outputPath);     // Tag the output file with processing information.
                 processed++;
             }
             else if (exitCode == -2)
